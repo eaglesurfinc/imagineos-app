@@ -1,0 +1,30 @@
+﻿[
+    {
+        "source":  "imagineos-mobile/lib/app.dart",
+        "sha256":  "7380de4c8a6415abd9b32a102f7f339566dc9666ce3e9d87c2df2984ba63ffe5"
+    },
+    {
+        "source":  "imagineos-mobile/lib/main.dart",
+        "sha256":  "89c78f472dba412a611bdf239a2e8e539f9b32368a656edb841e22e52f807f7b"
+    },
+    {
+        "source":  "imagineos-mobile/lib/features/library/library_screen.dart",
+        "sha256":  "75f675acea8739c1a3f699b17e97b75a43ef14fb02633cc24ab154adbb24b828"
+    },
+    {
+        "source":  "imagineos-mobile/lib/features/parent/parent_information_screen.dart",
+        "sha256":  "f2cc0944df57e96cb02dd92502822ec7bdfa60b3bfb2365430b106c5a51f4f34"
+    },
+    {
+        "source":  "imagineos-mobile/web/index.html",
+        "sha256":  "debaec2b54985e604f608f3d629c471b14db38ff9d815823955ee77822e90b79"
+    },
+    {
+        "source":  "imagineos-mobile/scripts/check.ps1",
+        "sha256":  "f7652f1edfe82952f8ce0d6ca5b7f1f0431b7a81a14b56944363b6f14beff6c9"
+    },
+    {
+        "source":  "imagineos-mobile/scripts/doctor.ps1",
+        "sha256":  "efaf87af7fca40a68eddb073c07a29e376c522e91cba782dfbaf75146288c665"
+    }
+]

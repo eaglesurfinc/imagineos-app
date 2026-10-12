@@ -1,0 +1,19 @@
+name: imagineos
+description: A creative studio that preserves children's characters and stories.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  supabase_flutter: 2.18.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

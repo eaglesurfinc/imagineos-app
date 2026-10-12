@@ -1,0 +1,31 @@
+$ErrorActionPreference = 'Stop'
+
+foreach ($toolName in @('flutter', 'dart')) {
+    if ($null -eq (Get-Command $toolName -ErrorAction SilentlyContinue)) {
+        throw "$toolName is not on PATH. Run scripts/doctor.ps1 for setup guidance."
+    }
+}
+
+Push-Location (Split-Path -Parent $PSScriptRoot)
+try {
+    & flutter pub get
+    if ($LASTEXITCODE -ne 0) { throw 'Dependency resolution failed.' }
+
+    $formatTargets = @('lib')
+    if (Test-Path -LiteralPath 'test') { $formatTargets += 'test' }
+    & dart format --output=none --set-exit-if-changed @formatTargets
+    if ($LASTEXITCODE -ne 0) { throw 'Formatting failed. Run: dart format lib' }
+
+    & flutter analyze --fatal-infos
+    if ($LASTEXITCODE -ne 0) { throw 'Static analysis failed.' }
+
+    if (Test-Path -LiteralPath 'test') {
+        & flutter test
+        if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
+    }
+
+    & flutter build web
+    if ($LASTEXITCODE -ne 0) { throw 'Web build failed.' }
+} finally {
+    Pop-Location
+}

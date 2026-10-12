@@ -1,0 +1,12 @@
+{
+  "name": "imagineos-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local tooling for the ImagineOS Supabase backend",
+  "scripts": {
+    "supabase": "supabase"
+  },
+  "devDependencies": {
+    "supabase": "2.120.0"
+  }
+}
