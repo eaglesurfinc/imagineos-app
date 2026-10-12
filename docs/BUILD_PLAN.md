@@ -9,7 +9,7 @@ For every task: inspect current work â†’ implement the smallest listed outcome â
 - [x] Import the existing Flutter shell and backend CLI/configuration into one build repository without copying secrets, caches, or private planning history.
 - [x] Extract compact requirements and preserve links/provenance to the unchanged full writings.
 - [ ] Complete current repository checks and record the new baseline.
-- [ ] Publish the reviewed initial commit to `eaglesurfinc/imagineos-app` as public.
+- [x] Publish the reviewed initial commit to `eaglesurfinc/imagineos-app` as public.
 
 Gate: a fresh checkout can build using the README; original repositories and recorded work remain available; publication contains only reviewed build material.
 
