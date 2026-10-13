@@ -18,7 +18,7 @@ The Constitution remains the highest product authority. Preserve the child as cr
 - Run `scripts/check.ps1` after application changes. Run database/access tests after schema changes. Report checks not run and why; never claim tests passed when none ran.
 - Live AI requires input/output validation, moderation, bounded retries, idempotency, atomic quotas, trace IDs, measured costs, and a generation kill switch. Ordinary tests never call paid providers.
 - Respect the founder's $1,000 total ceiling and existing allocations. No paid services, credits, or upgrades without authorization.
-- Hosted project creation is currently on hold at the founder's request. Docker installation was declined. Do not create a hosted project or install Docker without renewed authorization.
+- The founder authorized the dedicated hosted development project on 2026-10-11. Its identity is in `backend/project.json`. Use only that target for approved development work; do not create additional projects or paid upgrades without authorization. Docker installation remains declined; hosted development does not require it.
 - Vercel deployment is deferred. Publishing code does not authorize deployment or remove a host's commercial-use restrictions.
 
 ## Handoff

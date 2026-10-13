@@ -4,7 +4,7 @@ Kids create. AI illustrates.
 
 This is the implementation repository: Flutter client at the root and Supabase tooling under `backend/`. Start here with any coding agent. The original product, philosophy, business, and research writings remain in the separate Founder Bible; they are not required downloads for routine build tasks.
 
-Current state: initial source consolidation with Supabase configuration preparation. Hosted project creation is on hold. The new SDK dependency has not been downloaded or verified; run `flutter pub get` to update the imported baseline lockfile, then the checks below before treating this increment as build-ready. See `docs/STATUS.md` for the exact evidence.
+Current state: the Flutter shell builds and runs both offline and with the dedicated Supabase development project. Dependencies, analysis, six tests, release builds, and browser startup have passed. Parent authentication and saved characters are the next implementation stages; see `docs/STATUS.md` for evidence and remaining setup.
 
 ## Build in order
 
@@ -24,7 +24,7 @@ flutter run -d edge --web-port 8766
 
 Without Supabase configuration this runs the existing shell offline. It has an empty character library and parent information; it does not sign users in, save drawings, or generate images.
 
-## Connect Supabase when project creation is authorized
+## Connect Supabase development
 
 Follow [backend/README.md](backend/README.md). Copy `config/supabase.example.json` to the ignored `config/supabase.local.json` and replace the placeholders with your development project URL and publishable key. Then run:
 
@@ -40,6 +40,6 @@ These values are compiled into the browser application. Only a publishable key b
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check.ps1
 ```
 
-The check script resolves dependencies, checks formatting, analyzes code, runs tests when present, and builds web. It makes no paid AI calls. For a configured web build use `flutter build web --dart-define-from-file=config/supabase.local.json`.
+The check script resolves dependencies, checks formatting, analyzes code, runs tests when present, and builds web. Check the hosted endpoints separately with `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-backend.ps1`. It makes no paid AI calls. For a configured web build use `flutter build web --dart-define-from-file=config/supabase.local.json`.
 
 Vercel deployment is deferred. A public repository does not change hosting-plan eligibility; Vercel Hobby is limited to personal, noncommercial use. Native Android/iOS releases remain separate future distribution work.

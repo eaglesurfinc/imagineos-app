@@ -8,17 +8,17 @@ For every task: inspect current work → implement the smallest listed outcome �
 
 - [x] Import the existing Flutter shell and backend CLI/configuration into one build repository without copying secrets, caches, or private planning history.
 - [x] Extract compact requirements and preserve links/provenance to the unchanged full writings.
-- [ ] Complete current repository checks and record the new baseline.
+- [x] Complete current repository checks and record the new baseline.
 - [x] Publish the reviewed initial commit to `eaglesurfinc/imagineos-app` as public.
 
 Gate: a fresh checkout can build using the README; original repositories and recorded work remain available; publication contains only reviewed build material.
 
 ## Stage 1 — Hosted development connection
 
-- [ ] Founder authorizes creation of the development project and confirms current cost/organization. Currently on hold.
-- [ ] Create/identify the dedicated Supabase development project; record its identity without privileged credentials.
-- [ ] Configure Flutter using URL/publishable key; handle missing or invalid configuration without a blank screen.
-- [ ] Verify configured browser startup, Auth endpoint reachability, and a database test query. Record hosted checks separately from offline builds.
+- [x] Founder authorizes creation of the development project and confirms current cost/organization.
+- [x] Create/identify the dedicated Supabase development project; record its identity without privileged credentials.
+- [x] Configure Flutter using URL/publishable key; handle missing or invalid configuration without a blank screen.
+- [x] Verify configured browser startup, Auth endpoint reachability, and a database test query. Record hosted checks separately from offline builds.
 - [ ] Review auth URLs, email/provider settings, and migration procedure for the development target.
 
 Gate: the app demonstrably connects to the intended development services. No claim of working sign-in yet. Hosted development does not require installing Docker; local replay checks remain a separate environment requirement.

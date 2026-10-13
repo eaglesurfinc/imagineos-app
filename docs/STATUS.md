@@ -1,25 +1,31 @@
 # Current implementation status
 
-Updated: 2026-10-11. Evidence only; `BUILD_PLAN.md` defines acceptance gates.
+Updated: 2026-10-12. Evidence only; `BUILD_PLAN.md` defines acceptance gates.
 
 ## Current increment
 
-Stage 0: imported and published the build repository and compact execution documents. New application baseline verification remains incomplete because dependency downloads were declined. Stage 1 connection preparation is in progress; hosted Supabase project creation is explicitly on hold at the founder's request. No project was created and no database/auth network connection is claimed.
+Stage 0 is verified and the public build repository is published at https://github.com/eaglesurfinc/imagineos-app. Stage 1 hosted development connection is verified; hosted Auth configuration review remains incomplete. The founder resumed project creation and dependency installation on 2026-10-11 after the earlier hold.
 
-The imported Flutter shell has My characters and For parents destinations. It has no authentication, saving, drawing/upload, AI, protected parent controls, or exports. The old shell's build and browser checks are preserved in the source repositories; they do not validate changes in this new repository.
+The Flutter shell has My characters and For parents destinations. Parent sign-in, family schema/isolation, saved characters, drawing/upload, AI, protected parent controls, and export are not implemented.
 
 ## Verification
 
-The request to download the pinned Supabase Flutter dependency was declined. Dependency resolution and lockfile update, analysis, tests, build, and browser checks for the changed client remain pending; do not treat source preparation as verified integration. The imported lockfile is the original shell baseline and must be regenerated with `flutter pub get` before validating the added SDK. Backend CLI was verified as 2.120.0 in the original repository, with successful CLI initialization; its pinned tooling/configuration is imported here. Docker was declined and remains absent.
+- `flutter pub get` resolved pinned `supabase_flutter` 2.18.2 with the committed lockfile; no lockfile update was needed.
+- `scripts/check.ps1` passed: formatting (six files), analysis (no issues), all six Flutter tests, and release web build. Flutter 3.47.2 / Dart 3.13.2.
+- `flutter build web --dart-define-from-file=config/supabase.local.json` passed. The build emits a nonblocking Cupertino font warning; Material icons render in the checked shell.
+- Offline and configured releases were served locally and checked in headless Edge: library/parent navigation, keyboard activation, phone/tablet and narrow layouts, with no uncaught runtime exceptions. The configured browser fetched the intended Auth settings endpoint successfully (HTTP 200).
+- `npm ci` in `backend/` passed (zero reported vulnerabilities); pinned Supabase CLI reports 2.120.0.
+- `scripts/check-backend.ps1` passed: email Auth enabled, signup enabled; Data API schema discovery correctly denies publishable keys (HTTP 401, server secret required). These are reachability/permission checks, not table-access tests.
+- Authorized server-side SQL returned `connection_ok = 1`, database `postgres`, PostgreSQL 17.11. No application schema, users, or migrations were created.
 
-Local checks completed: Dart formatter processed 6 source/test files; a dependency-free Dart smoke probe passed offline configuration, intended values, partial-input rejection, rejection of secret/legacy keys without credential leakage, HTTPS and URL-credential/query guards, and placeholder rejection. This probe validates the configuration parser only. The Flutter test suite, SDK initialization, and changed application build have not run.
+## Hosted development target
 
-## Publication and configuration
+`imagineos-dev`, project ref `hgsivbqmbcliqbstrkdz`, organization eaglesurf's Org, region `us-east-2`; creation quoted $0/month on Free. Project reports `ACTIVE_HEALTHY`. Public identity is recorded in `backend/project.json`.
 
-Created the public repository `https://github.com/eaglesurfinc/imagineos-app` after verifying the updated local Git credential belongs to eaglesurfinc. Existing content was checked before creation; the repository was absent. Published reviewed initial commit `e9d24e5` to `main`; Git reported the new remote branch and established upstream tracking. The 27 reviewed files contain implementation, compact engineering guidance, placeholders, and tooling; original planning histories and local environment files were excluded. Staged whitespace/link/provenance checks passed, and the credential-pattern review detected no private keys, secret API-key values, or JWT-like credentials. The original repositories and their existing changes remain intact.
-
-Supabase organization selected: eaglesurf's Org. Quoted creation cost was $0/month on Free, but the founder then requested that project creation be held. Use placeholders until authorization changes. Do not publish local configuration or privileged credentials.
+URL and modern publishable key are in ignored `config/supabase.local.json`. No server secret or database password was placed in client configuration. Supabase CLI dependencies are installed, but local CLI authentication/linking is not configured. Docker installation remains declined; local database replay has not run. Vercel deployment remains deferred.
 
 ## Next action
 
-When dependency downloads are authorized, resolve the pinned Supabase Flutter SDK and regenerate the lockfile, then run `scripts/check.ps1` and offline startup browser checks to finish the Stage 0 verification gate. Resume Stage 1 project creation only when the founder lifts the hold; then verify the configured browser, Auth endpoint, and database connection. Stage 2 parent authentication and isolation follow verified connection.
+Complete Stage 1 Auth setup: verify hosted Site URL and exact redirects for `http://127.0.0.1:8766` / `http://localhost:8766`, email confirmation, provider settings, and development email delivery. The local CLI template now uses these origins and enables email confirmation; this does not update hosted settings. The connected tools cannot inspect/update hosted Auth configuration, and no management access token is configured locally.
+
+Then begin Stage 2: choose parent sign-in, record the minimal family/profile schema, add versioned migrations and RLS, and test two independent families against the actual database. Follow `backend/README.md` for migration targeting. Keep real family data out of this development project.
