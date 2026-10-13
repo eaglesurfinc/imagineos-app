@@ -28,9 +28,18 @@ The founder reported a root 404 after importing and reimporting the public repos
 
 Optional build variables supply only the Supabase URL and publishable key; absent configuration keeps the existing offline shell usable. No rewrite is needed for current internal tab navigation. Remote logs/settings remain unavailable because the connected Vercel credentials receive 403 for `koletek`; a confirmed remote root cause or successful deployment is not claimed.
 
+## 2026-10-12 - Parent accounts and family isolation
+
+Use Supabase email/password sign-in with email confirmation and password recovery. Parent authentication controls account access; it does not establish adult identity or implement the later parent-lock/consent features. One parent has one family for this increment. Child profiles have a nickname only: no child email, birthdate, or additional personal details.
+
+Auth owns credentials. `parent_profiles` references `auth.users`; `families.parent_user_id` is unique and immutable to clients; `child_profiles` belongs to a family. A private, non-client-executable Auth insert trigger provisions parent/family rows for nonanonymous email accounts. It needs SECURITY DEFINER to write those rows, uses an empty search path and qualified names, and ignores user metadata. Clients can read their own parent/family context and insert/rename/delete their own child profiles. Column grants deny changing child-family links; RLS checks ownership on every child operation. Administrative family membership, invitation, and child credentials are deferred.
+
+Applied the versioned migration only to the dedicated development project. The CLI-created local migration filename was aligned with the hosted migration history version `20261013014911` after application. SQL and real Auth/Data API tests verified the ownership boundaries. Temporary fictional accounts were removed. Existing JWTs may remain valid until expiry after sign-out/deletion, but deleted family records grant no access; strict session revocation for sensitive operations remains a later parent-controls requirement.
+
+The founder confirmed hosted origins/redirects and email confirmation settings, and later confirmed both Vercel build variables are set. Email-provider confirmation is enabled according to the endpoint. Default hosted email delivery and confirmation/recovery callbacks still require a manual adult test; no SMTP provider or paid delivery service was added.
+
 ## Decisions needed in their stages
 
-- Stage 2: parent sign-in method and minimal explicit family/profile relationships.
 - Stage 4: minimum drawing controls.
 - Stage 6: illustration provider, recognition/drift thresholds, retry limits, benchmark authorization.
 - Stage 7: default export format.

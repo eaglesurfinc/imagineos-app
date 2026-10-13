@@ -4,7 +4,7 @@ Kids create. AI illustrates.
 
 This is the implementation repository: Flutter client at the root and Supabase tooling under `backend/`. Start here with any coding agent. The original product, philosophy, business, and research writings remain in the separate Founder Bible; they are not required downloads for routine build tasks.
 
-Current state: the Flutter shell builds and runs both offline and with the dedicated Supabase development project. Dependencies, analysis, six tests, release builds, and browser startup have passed. Parent authentication and saved characters are the next implementation stages; see `docs/STATUS.md` for evidence and remaining setup.
+Current state: the Flutter shell is live on Vercel. Configured builds include parent email/password sign-up, sign-in, recovery, sign-out, and session restoration. The development database enforces family isolation and supports minimal child profiles. Character saving, drawing/upload, and AI remain pending. See `docs/STATUS.md` for verification and remaining email-callback checks.
 
 ## Build in order
 
@@ -22,7 +22,7 @@ flutter pub get
 flutter run -d edge --web-port 8766
 ```
 
-Without Supabase configuration this runs the existing shell offline. It has an empty character library and parent information; it does not sign users in, save drawings, or generate images.
+Without Supabase configuration this runs the existing shell offline. It has an empty character library and parent information. Configured builds enable parent access; drawing, saving, and generation remain pending.
 
 ## Connect Supabase development
 
@@ -32,7 +32,7 @@ Follow [backend/README.md](backend/README.md). Copy `config/supabase.example.jso
 flutter run -d edge --web-port 8766 --dart-define-from-file=config/supabase.local.json
 ```
 
-These values are compiled into the browser application. Only a publishable key belongs here. Database passwords, service-role keys, secret API keys, and AI provider keys must stay server-side. A configured client is not a completed authentication feature.
+These values are compiled into the browser application. Only a publishable key belongs here. Database passwords, service-role keys, secret API keys, and AI provider keys must stay server-side. Use the For parents tab to create a parent account, confirm its email, and sign in. Account access is implemented; signup confirmation and reset-email delivery still need manual verification.
 
 ## Verify
 

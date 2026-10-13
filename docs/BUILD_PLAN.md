@@ -19,16 +19,16 @@ Gate: a fresh checkout can build using the README; original repositories and rec
 - [x] Create/identify the dedicated Supabase development project; record its identity without privileged credentials.
 - [x] Configure Flutter using URL/publishable key; handle missing or invalid configuration without a blank screen.
 - [x] Verify configured browser startup, Auth endpoint reachability, and a database test query. Record hosted checks separately from offline builds.
-- [ ] Review auth URLs, email/provider settings, and migration procedure for the development target.
+- [x] Review auth URLs, email/provider settings, and migration procedure for the development target.
 
 Gate: the app demonstrably connects to the intended development services. No claim of working sign-in yet. Hosted development does not require installing Docker; local replay checks remain a separate environment requirement.
 
 ## Stage 2 — Parent access and family isolation
 
-- [ ] Record the minimum parent/family/child-profile schema and chosen parent sign-in method; minimize collected data.
-- [ ] Create versioned migrations and explicit access policies/grants. Require server-controlled ownership; deny anonymous access to family records.
-- [ ] Build parent sign-up/sign-in, sign-out, session restoration, and recoverable auth errors.
-- [ ] Test two independent families, unauthenticated access, role escalation, ownership reassignment, and linked-resource access.
+- [x] Record the minimum parent/family/child-profile schema and chosen parent sign-in method; minimize collected data.
+- [x] Create versioned migrations and explicit access policies/grants. Require server-controlled ownership; deny anonymous access to family records.
+- [x] Build parent sign-up/sign-in, sign-out, session restoration, and recoverable auth errors.
+- [x] Test two independent families, unauthenticated access, role escalation, ownership reassignment, and linked-resource access.
 
 Gate: an adult can sign in and return to their own family context; attempts to access another family's data fail. Tests run against the actual database, not only mocked clients.
 

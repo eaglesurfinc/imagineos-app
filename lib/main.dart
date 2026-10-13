@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'supabase_config.dart';
+import 'features/parent/parent_account.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +16,11 @@ Future<void> main() async {
         publishableKey: config.publishableKey,
       );
     }
-    runApp(const ImagineOsApp());
+    runApp(ImagineOsApp(
+      account: config == null
+          ? null
+          : SupabaseParentAccount(Supabase.instance.client),
+    ));
   } catch (_) {
     // Keep configuration values and underlying errors out of the public UI.
     runApp(const StartupFailureApp());
