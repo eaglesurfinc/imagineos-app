@@ -22,6 +22,12 @@ The client dependency remains pinned to 2.18.2 and the backend CLI to 2.120.0. B
 
 Hosted Auth URLs/email settings remain to be reviewed before sign-in implementation. Local template changes are not hosted configuration. Docker and Vercel deployment remain deferred.
 
+## 2026-10-12 - Explicit Vercel Flutter build
+
+The founder reported a root 404 after importing and reimporting the public repository into Vercel. Added a file-based build command and `build/web` output directory instead of relying on framework detection. The Linux build script fetches the official Flutter 3.47.2 tag and verifies revision `d3b14c876900e553bc736ca19295fc09e3853e8e`, matching the validated workstation SDK. The lockfile is enforced. Only generated web output is published; no Flutter source, private planning, backend credentials, or SDK cache belongs in the static output.
+
+Optional build variables supply only the Supabase URL and publishable key; absent configuration keeps the existing offline shell usable. No rewrite is needed for current internal tab navigation. Remote logs/settings remain unavailable because the connected Vercel credentials receive 403 for `koletek`; a confirmed remote root cause or successful deployment is not claimed.
+
 ## Decisions needed in their stages
 
 - Stage 2: parent sign-in method and minimal explicit family/profile relationships.

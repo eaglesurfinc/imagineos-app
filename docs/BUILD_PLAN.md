@@ -93,7 +93,7 @@ Gate: parent controls are actually protected and privacy/recovery behavior is ve
 
 - [ ] Resolve launch jurisdiction and applicable obligations before collecting real family data.
 - [ ] Complete safe-output, consent/deletion, security, cost, support, monitoring, incident, and rollback readiness review.
-- [ ] Select hosting/distribution with suitable terms and approved costs. Vercel deployment remains deferred; public GitHub visibility does not change Hobby terms.
+- [ ] Select hosting/distribution with suitable terms and approved costs. Troubleshooting the existing Vercel shell does not complete pilot hosting readiness; public GitHub visibility does not change Hobby terms.
 - [ ] Run a full release rehearsal and document remaining limitations before inviting families.
 - [ ] Conduct a small authorized pilot; measure repeat creation, character recognition/ownership, recovery, and accepted-page economics.
 

@@ -42,4 +42,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check.ps1
 
 The check script resolves dependencies, checks formatting, analyzes code, runs tests when present, and builds web. Check the hosted endpoints separately with `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-backend.ps1`. It makes no paid AI calls. For a configured web build use `flutter build web --dart-define-from-file=config/supabase.local.json`.
 
-Vercel deployment is deferred. A public repository does not change hosting-plan eligibility; Vercel Hobby is limited to personal, noncommercial use. Native Android/iOS releases remain separate future distribution work.
+## Vercel shell deployment
+
+The repository now includes `vercel.json` and `scripts/vercel-build.sh`. The script installs Flutter 3.47.2 at the verified revision, resolves the committed dependency lockfile, and builds the static website into `build/web`. Generated files stay out of Git; importing the source alone does not generate them.
+
+For the existing `imagineos-app` project in the `koletek` scope, connect `eaglesurfinc/imagineos-app`, production branch `main`, and use these settings:
+
+| Setting | Value |
+| --- | --- |
+| Root Directory | Repository root (leave blank) |
+| Framework Preset | Other |
+| Install Command | From `vercel.json` |
+| Build Command | `bash scripts/vercel-build.sh` |
+| Output Directory | `build/web` |
+
+Remove conflicting dashboard overrides and redeploy the latest commit. Confirm the build log actually runs the Flutter script and its output includes `index.html`, `flutter_bootstrap.js`, and `main.dart.js`. The current app uses internal tab navigation and needs no path-routing rewrite.
+
+With neither `SUPABASE_URL` nor `SUPABASE_PUBLISHABLE_KEY` set in Vercel, the deployed shell runs offline. To enable SDK initialization, set both build variables using the development project's URL and modern publishable key, then rebuild. Never use a service-role or secret API key; both values are compiled into the public browser bundle. The ignored local JSON configuration is not available to Vercel.
+
+This is an early shell, not a family pilot. Current remote deployment verification is pending account access; see `docs/STATUS.md`. Native releases and hosting eligibility remain separate readiness decisions.

@@ -19,3 +19,4 @@ backend/node_modules/
 backend/supabase/.temp/
 backend/supabase/.branches/
 *.log
+.vercel/

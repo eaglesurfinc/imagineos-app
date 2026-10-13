@@ -22,10 +22,20 @@ The Flutter shell has My characters and For parents destinations. Parent sign-in
 
 `imagineos-dev`, project ref `hgsivbqmbcliqbstrkdz`, organization eaglesurf's Org, region `us-east-2`; creation quoted $0/month on Free. Project reports `ACTIVE_HEALTHY`. Public identity is recorded in `backend/project.json`.
 
-URL and modern publishable key are in ignored `config/supabase.local.json`. No server secret or database password was placed in client configuration. Supabase CLI dependencies are installed, but local CLI authentication/linking is not configured. Docker installation remains declined; local database replay has not run. Vercel deployment remains deferred.
+URL and modern publishable key are in ignored `config/supabase.local.json`. No server secret or database password was placed in client configuration. Supabase CLI dependencies are installed, but local CLI authentication/linking is not configured. Docker installation remains declined; local database replay has not run. The founder is troubleshooting the existing Vercel shell deployment; see the deployment record below.
 
 ## Next action
 
 Complete Stage 1 Auth setup: verify hosted Site URL and exact redirects for `http://127.0.0.1:8766` / `http://localhost:8766`, email confirmation, provider settings, and development email delivery. The local CLI template now uses these origins and enables email confirmation; this does not update hosted settings. The connected tools cannot inspect/update hosted Auth configuration, and no management access token is configured locally.
 
 Then begin Stage 2: choose parent sign-in, record the minimal family/profile schema, add versioned migrations and RLS, and test two independent families against the actual database. Follow `backend/README.md` for migration targeting. Keep real family data out of this development project.
+
+## Vercel shell troubleshooting (2026-10-12)
+
+The public root returned HTTP 404 `NOT_FOUND` after the founder imported the repository. Source inspection found no Vercel build/output configuration, while local release output contains `index.html` and the compiled Flutter app. This supports a build/output configuration hypothesis, not a confirmed diagnosis from deployment logs.
+
+Added `vercel.json` (custom build, `build/web` output), a pinned Flutter build script with lockfile enforcement and output assertions, and dashboard instructions in the README. The existing `koletek` scope is identified, but Vercel tools return 403 Forbidden; local Vercel CLI is absent. Reimporting the repository did not grant the connected account access. Remote deployment logs, settings, and the post-fix site remain unverified.
+
+Local validation passed: Bash syntax, Vercel JSON parsing/output-path checks, pinned SDK revision verification, `flutter pub get --enforce-lockfile`, release compilation (104 seconds), and nonempty `index.html` / bootstrap / compiled JavaScript assertions. The complete script ran under Git Bash using the existing matching Windows SDK; fresh Linux SDK installation on Vercel remains untested. No Dart application code changed, so the already-passing six-test baseline was not rerun.
+
+Next deployment action: use the latest pushed commit, repository-root setting, and file-based build/output settings; redeploy and check the root and compiled assets. Restore Vercel connection access to `koletek` to allow direct inspection. Parent Auth and pilot readiness are still incomplete.

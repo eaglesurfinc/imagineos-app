@@ -19,7 +19,7 @@ The Constitution remains the highest product authority. Preserve the child as cr
 - Live AI requires input/output validation, moderation, bounded retries, idempotency, atomic quotas, trace IDs, measured costs, and a generation kill switch. Ordinary tests never call paid providers.
 - Respect the founder's $1,000 total ceiling and existing allocations. No paid services, credits, or upgrades without authorization.
 - The founder authorized the dedicated hosted development project on 2026-10-11. Its identity is in `backend/project.json`. Use only that target for approved development work; do not create additional projects or paid upgrades without authorization. Docker installation remains declined; hosted development does not require it.
-- Vercel deployment is deferred. Publishing code does not authorize deployment or remove a host's commercial-use restrictions.
+- The founder requested troubleshooting the existing `imagineos-app.vercel.app` shell deployment on 2026-10-12. Use the existing project in the `koletek` scope; do not create paid resources or treat this shell as pilot-ready. Hosting terms and broader launch readiness still require review.
 
 ## Handoff
 
