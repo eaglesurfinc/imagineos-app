@@ -4,7 +4,7 @@ Kids create. AI illustrates.
 
 This is the implementation repository: Flutter client at the root and Supabase tooling under `backend/`. Start here with any coding agent. The original product, philosophy, business, and research writings remain in the separate Founder Bible; they are not required downloads for routine build tasks.
 
-Current state: the Flutter shell is live on Vercel. Configured builds include parent email/password sign-up, sign-in, recovery, sign-out, and session restoration. The development database enforces family isolation and supports minimal child profiles. Character saving, drawing/upload, and AI remain pending. See `docs/STATUS.md` for verification and remaining email-callback checks.
+Current state: configured builds support parent accounts and an original-character library: creator nicknames, image upload, save/reopen, immutable version history, and unfinished-upload recovery. Originals live in private Supabase Storage. In-app drawing, stories, AI, protected parent locks, and export remain pending. See `docs/STATUS.md` for verification and remaining live checks.
 
 ## Build in order
 
@@ -22,7 +22,7 @@ flutter pub get
 flutter run -d edge --web-port 8766
 ```
 
-Without Supabase configuration this runs the existing shell offline. It has an empty character library and parent information. Configured builds enable parent access; drawing, saving, and generation remain pending.
+Without Supabase configuration this runs the existing shell offline. It has an empty character library and parent information. Configured builds enable parent access; upload/saving require the configured signed-in build; in-app drawing and generation remain pending.
 
 ## Connect Supabase development
 

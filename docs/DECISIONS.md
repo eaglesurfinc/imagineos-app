@@ -38,6 +38,18 @@ Applied the versioned migration only to the dedicated development project. The C
 
 The founder confirmed hosted origins/redirects and email confirmation settings, and later confirmed both Vercel build variables are set. Email-provider confirmation is enabled according to the endpoint. Default hosted email delivery and confirmation/recovery callbacks still require a manual adult test; no SMTP provider or paid delivery service was added.
 
+## 2026-10-15 - Immutable originals and explicit character versions
+
+Stage 3 uses character identity, numbered character versions, and one source asset per version. Names belong to versions; adding an intentionally revised drawing never edits earlier names or files. The server resolves the family from the selected child profile. Clients cannot directly write character/version/asset metadata or reassign its ownership. The read view uses SECURITY INVOKER and underlying RLS.
+
+The private `character-originals` bucket accepts PNG/JPEG/WebP up to 5 MB. The Flutter picker checks file signatures, reads dimensions with a portable header decoder before expanding pixels, verifies renderability, rejects more than 16 megapixels, and preserves original bytes. No resize, AI processing, or original replacement occurs. Client checksum checks verify the bytes on upload recovery and reopening; SQL publication verifies Storage metadata size/type, not a server-computed cryptographic digest. Image headers and metadata are not server-side content moderation or image sanitization; those remain future gateway/privacy work.
+
+Saving has three states: pending, ready, and cancelled. A retry UUID atomically reserves a character/version/path through authenticated invoker RPC wrappers backed by nonexposed, ownership-checking privileged functions. Equal retry keys are serialized and checked against the original parameters. Publication requires a matching stored object and is idempotent. Storage INSERT/DELETE policies lock pending asset rows to serialize against publication; UPDATE/upsert is never granted. Published metadata/files cannot be edited or deleted through client access.
+
+After interruption, the library lists pending uploads: finish an already uploaded image, reselect the same file to reuse its reservation, or discard the pending object through the Storage API before cancelling its metadata. Cancelled metadata is retained for retry/history consistency and hidden from the library. This is user-driven cleanup, not a scheduled global retention job. Original/version removal and account-wide deletion still require the later protected deletion workflow. In-memory drafts and decoded images are cleared when account identity changes.
+
+Pinned `file_selector` 1.1.0, `crypto` 3.0.7, `uuid` 4.6.0, and `image` 4.12.0; the Supabase SDK remains 2.18.2. Hosted migrations are `20261015225320` (originals) and `20261015231438` (covering indexes and a composite child/family foreign key). CLI-generated filenames were aligned with hosted history. Verification uses fictional adult-created images and accounts only. No live illustration provider or additional paid service was introduced.
+
 ## Decisions needed in their stages
 
 - Stage 4: minimum drawing controls.

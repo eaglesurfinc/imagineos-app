@@ -42,6 +42,15 @@ class _ParentAccessScreenState extends State<ParentAccessScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant ParentAccessScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Returning from the library must reflect newly created creator profiles.
+    if (widget.account.email != null && !widget.account.recoveringPassword) {
+      _family = widget.account.loadFamily();
+    }
+  }
+
+  @override
   void dispose() {
     widget.account.removeListener(_accountChanged);
     _email.dispose();
@@ -101,6 +110,7 @@ class _ParentAccessScreenState extends State<ParentAccessScreen> {
           Text('Signed in as ${account.email}'),
           const SizedBox(height: 16),
           FutureBuilder<FamilySummary>(
+            key: ValueKey(_loadedEmail),
             future: _family,
             builder: (context, snapshot) {
               if (snapshot.hasError) {

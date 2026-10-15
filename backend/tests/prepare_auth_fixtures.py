@@ -39,5 +39,6 @@ queries.append('commit;')
 ids = ','.join(f"'{account['id']}'" for account in accounts)
 cleanup = f"delete from auth.users where id in ({ids}); select count(*) as remaining_test_accounts from auth.users where id in ({ids});"
 accounts_path.write_text(json.dumps(accounts), encoding='utf-8')
-sql_path.write_text(json.dumps(dict(create='\n'.join(queries), cleanup=cleanup)), encoding='utf-8')
+reset_originals = f"update public.original_assets a set state='pending' from public.families f where f.id=a.family_id and f.parent_user_id in ({ids});"
+sql_path.write_text(json.dumps(dict(create='\n'.join(queries), cleanup=cleanup, reset_originals=reset_originals)), encoding='utf-8')
 print('Prepared ignored fictional account/SQL files. Credentials omitted.')

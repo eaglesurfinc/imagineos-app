@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'supabase_config.dart';
 import 'features/parent/parent_account.dart';
+import 'features/library/character_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +18,9 @@ Future<void> main() async {
       );
     }
     runApp(ImagineOsApp(
+      characterStore: config == null
+          ? null
+          : SupabaseCharacterStore(Supabase.instance.client),
       account: config == null
           ? null
           : SupabaseParentAccount(Supabase.instance.client),

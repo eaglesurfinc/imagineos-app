@@ -50,3 +50,23 @@ npm run supabase -- db push --help
 Discover current options with `--help`. Review and track migration SQL here before applying it. Keep local filenames aligned with hosted migration history when using the migration API. Authenticate the CLI through its supported login flow or an external environment token, then explicitly select ref `hgsivbqmbcliqbstrkdz` using the supported project option/link command. Verify the target and review a dry run before applying approved migrations. Local CLI authentication/linking is not configured on this workstation. Keep access tokens and database passwords outside Git. Never reset a database as routine verification.
 
 Hosted development does not require Docker. Local stack replay does; installation was declined and local database replay remains unverified. Before schema changes, add explicit grants/RLS and real cross-family access tests. AI remains disabled until its approved stage.
+
+## Character originals and private Storage
+
+`characters` holds identity and a child/family relationship; `character_versions` holds append-only names and version numbers; `original_assets` holds the private path, MIME type, size, checksum and pending/ready/cancelled state. Read through `original_uploads`, a SECURITY INVOKER view. All underlying tables use family RLS and grant only SELECT to clients.
+
+Use `reserve_original`, `finish_original`, and `cancel_original` RPCs for state transitions. Their invoker wrappers delegate to explicitly granted functions in the unexposed `imagineos_upload_private` schema, which check authenticated database ownership and qualify all names. The Auth provisioning schema remains inaccessible to clients. Never bypass these transitions or grant direct table mutation to fix a client error.
+
+The private bucket `character-originals` caps each object at 5 MB and permits only PNG/JPEG/WebP. Paths are server-assigned family/asset UUIDs. Storage policies deny unreserved uploads, all overwrites/upserts, and deletion of ready files. Only pending files can be discarded. Do not delete Storage metadata using SQL: remove files through Storage API first.
+
+To verify Stage 3, prepare the two fictional accounts as above, apply their generated create SQL, then run from repository root:
+
+```powershell
+node backend/tests/character_storage_smoke.mjs
+flutter build web --dart-define-from-file=config/supabase.local.json
+python -m http.server 8766 --bind 127.0.0.1 --directory build/web
+```
+
+In another terminal, run `node backend/tests/character_browser_smoke.cjs`. It uses an isolated headless Edge profile; set `IMAGINEOS_BROWSER_PATH` for another Chromium executable. Node 24+ is required. It tests the real file picker, save, reopen, intentional version update, and reload, and independently checks both byte streams through REST/Storage. Temporary screenshots contain fictional data only. These checks do not send email.
+
+Mandatory cleanup, including after failed tests: through an authorized SQL connection apply `reset_originals` from the ignored fixture SQL file, which targets only the two generated fictional families. This privileged test-only reset allows their ready objects to be removed; it is never a product operation. Run `node backend/tests/character_storage_smoke.mjs --cleanup` to remove files via Storage and cancel remaining reservations. Finally apply the fixture `cleanup` SQL to delete their Auth users and cascaded records. Assert zero fixture accounts/objects remain, then remove the ignored fixture JSON files. Never apply that reset to real users, real artwork, or another project.

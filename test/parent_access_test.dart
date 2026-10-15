@@ -5,6 +5,7 @@ import 'package:imagineos/features/parent/parent_account.dart';
 import 'package:imagineos/features/parent/parent_access_screen.dart';
 
 class FakeAccount extends ParentAccount {
+  int childCount = 2;
   String? signedInEmail;
   bool fail = false;
   bool recovery = false;
@@ -46,7 +47,7 @@ class FakeAccount extends ParentAccount {
   @override
   Future<FamilySummary> loadFamily() async {
     if (fail) throw Exception('database error');
-    return const FamilySummary(2);
+    return FamilySummary(childCount);
   }
 }
 
@@ -57,6 +58,15 @@ Future<void> show(WidgetTester tester, FakeAccount account) async {
 }
 
 void main() {
+  testWidgets('returning to the parent panel refreshes the creator count',
+      (tester) async {
+    final account = FakeAccount()..signedInEmail = 'adult@example.invalid';
+    await show(tester, account);
+    account.childCount = 3;
+    await show(tester, account);
+    expect(
+        find.text('Your family is ready. Child profiles: 3.'), findsOneWidget);
+  });
   testWidgets('a password recovery event opens the parent panel',
       (tester) async {
     final account = FakeAccount()..signedInEmail = 'adult@example.invalid';

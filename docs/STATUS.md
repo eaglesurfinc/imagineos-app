@@ -1,33 +1,36 @@
 # Current implementation status
 
-Updated: 2026-10-12 (America/Chicago). `BUILD_PLAN.md` defines acceptance gates.
+Updated: 2026-10-15 (America/Chicago). `BUILD_PLAN.md` defines acceptance gates.
 
 ## Current increment
 
-Stages 0-1 and the Stage 2 account/isolation implementation are complete. Parent email/password sign-up, sign-in, reset/new-password forms, sign-out, session restoration, family loading, and recoverable errors are implemented. Password-recovery events open the parent panel. Offline builds keep the original preview. Configured builds expose account access under For parents.
+Stage 3's original-character loop is implemented and verified on the hosted development backend and local release browser. Stages 0-3 now have evidence. Sign in under For parents, add/select a creator nickname in My characters, choose an original image, name/save it, and reopen it. Intentional updates create numbered versions; earlier names, files and references remain unchanged.
 
-`parent_profiles`, `families`, and `child_profiles` are deployed with RLS, explicit grants, immutable ownership and child-family links, and a private Auth provisioning trigger. Child profiles store only a nickname. Child-profile management UI, saved characters, upload/drawing, AI, protected parent locks, consent/deletion, and export remain pending.
+Unfinished uploads remain visible after reopening: finish a stored file, choose the same file again to resume its existing reservation, or discard the pending object and cancel its metadata. Failed saves retain their selected bytes and retry key. Account changes close open originals and clear in-memory drafts/images. The parent panel refreshes its creator count when revisited.
+
+In-app drawing, AI, stories, export, protected parent locks, consent/deletion, and pilot readiness remain pending. Only fictional adult-created content is authorized during development.
 
 ## Verification
 
-- Final `scripts/check.ps1` passed: formatting, analysis (no issues), all 13 tests, and release web build. The configured release build also passed. No dependency versions changed.
-- SQL isolation tests passed on the actual hosted database for two families: own reads/inserts/updates, blocked foreign reads/inserts/updates/deletes, ownership reassignment, linked-child reassignment, forged metadata, unauthenticated access, and anonymous Auth users. Fixtures rolled back.
-- Real Auth/Data API tests passed using two temporarily provisioned, confirmed fictional accounts: password sign-in, wrong-password denial, refresh, logout/refresh revocation, family/child isolation, metadata escalation, and anonymous denial.
-- Configured release in isolated headless Edge passed sign-in, family loading, reload/session restoration, and sign-out clearing the family view, with no uncaught runtime errors. Phone screenshots inspected. Earlier offline shell phone/tablet/keyboard checks remain recorded in history; the new Auth flow has not had a full tablet/zoom accessibility audit.
-- Hosted security advisor returned no findings after migration. The migration history contains `20261013014911_parent_family_access`; local SQL uses that version.
-- Deleted temporary API/browser accounts and their cascaded records; cleanup returned zero remaining test accounts. Local temporary credential/SQL files removed.
+- Final required Flutter check script passed formatting, analysis, all 24 tests and release web compilation. The configured release also built successfully. Browser compatibility fixes are covered by explicit regressions for oversized headers and Storage's binary-download missing-object wrapper.
+- Real Auth/REST/Storage smoke checks passed: concurrent retry idempotency, original-byte save/download, immutable names/files/version references, blocked foreign-family reservation/read/download/sign/upload/finalize/cancel, anonymous denial, and rejection of oversize or mismatched-size inputs. Saved originals cannot be cancelled, even by their owning family.
+- Interrupted-upload tests passed: finalize requires an actual matching file; a fresh session can finish a stored pending file; discard removes its object through Storage before cancelling the reservation. Reupload after cancellation is denied. Widget tests verify reselecting the same file after reopening preserves the reserved identity.
+- Real file-picker browser check passed in isolated headless Edge: select PNG, save, reopen/render, add an intentional new version, reload the app, and reopen/render again. Independent REST/Storage reads confirmed the same character identity with distinct version IDs and both exact byte streams. Phone/tablet screenshots inspected; no uncaught runtime exceptions. The later parent-count refresh is covered by a widget regression; full zoom/keyboard/device-format coverage remains Stage 4 work.
+- Hosted SQL test confirmed the composite foreign key rejects a child/family mismatch. Migration history and local files agree: `20261015225320_character_originals`, `20261015231438_character_link_integrity`.
+- Temporary test objects were removed through Storage API; SQL confirmed zero remaining fixture objects. Fixture Auth users and cascaded records were deleted; zero remaining fixture accounts. Local credential/fixture JSON files removed and test server stopped.
+- Advisor review found no new RLS/security-policy issue. It reports [leaked-password protection disabled](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection); no Auth-plan/settings changes were made. Missing foreign-key covering indexes were fixed; newly created indexes have informational unused-index notices.
 - Known nonblocking build warning: Cupertino font family not bundled; Material icons render.
 
-## Hosted targets and configuration
+## Hosted targets and prior evidence
 
-Supabase: `imagineos-dev`, ref `hgsivbqmbcliqbstrkdz`, eaglesurf's Org, `us-east-2`, created on Free at quoted $0/month. Public identity is in `backend/project.json`. URL/publishable key remain in ignored local config. No server secret or DB password is in Flutter/Git.
+Supabase: `imagineos-dev`, ref `hgsivbqmbcliqbstrkdz`, eaglesurf's Org, `us-east-2`, Free at the quoted $0/month creation cost. Public identity is in `backend/project.json`. URL/publishable key remain in ignored local configuration; privileged credentials are absent from Flutter/Git. The `character-originals` bucket is private, capped at 5 MB per PNG/JPEG/WebP object. Image-header limits (16 megapixels) and render/checksum validation run in the client; SQL checks stored MIME/size before publication. This is not server-side content moderation.
 
-The founder confirmed hosted Site URL `https://imagineos-app.vercel.app`, allowed redirects for that origin and both localhost:8766 origins, and email confirmation enabled. The settings endpoint reports email enabled and `mailer_autoconfirm = false`. Hosted settings are founder-confirmed; configuration-management tools remain unavailable. CLI login/linking and Docker replay remain unconfigured.
+Parent account isolation and the original 13-test baseline were verified on 2026-10-12. On 2026-10-15 the founder confirmed live Vercel sign-in and password reset. Hosted origins and email confirmation are founder-confirmed; Auth settings report email enabled and automatic confirmation disabled. Signup email/confirmation delivery remains unverified. No SMTP provider was added.
 
-Vercel: the founder's screenshot confirms the shell loads after commit `d24f32e`; the 404 is resolved. The founder confirmed both build variables set for the next deployment. Vercel tools still cannot access the `koletek` scope (403); remote logs and the new Auth deployment are not independently verified.
+Vercel build variables are founder-confirmed. Remote deployment tools still lack access to `koletek` (403); the Stage 3 live deployment has not been independently checked. Local CLI login/linking and Docker replay remain unconfigured.
 
-## Remaining verification and next action
+## Next action
 
-After the new commit deploys, use an adult test account under For parents to verify signup email delivery, confirmation callback, sign-in, reset email/new-password callback, refresh, and sign-out at the live origin. Temporary preconfirmed fixtures did not test actual mail delivery. No SMTP provider was added; built-in hosted email restrictions/rate limits may require a separately approved delivery decision. Do not disable verification to bypass those limits.
+After the Stage 3 commit deploys, try the live save/reopen/version loop using fictional artwork. Check signup confirmation mail separately with an adult test account; keep email confirmation enabled. No protected parent mode is claimed yet.
 
-Then continue Stage 3: add character/version/asset migrations and private storage policies, child-profile selection/management, upload an original drawing, name/save/reopen it, and run cross-family asset access and interruption tests. Keep fictional adult-created content until pilot readiness is established. The later protected parent mode remains a separate acceptance gate.
+Continue Stage 4 with the minimal in-app brush/color/undo controls, saving drawings through this same original/version pipeline, then complete phone/tablet, enlarged-text/zoom, keyboard and interruption checks. Do not start story generation or live AI before their planned gates.

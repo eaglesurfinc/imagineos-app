@@ -1,0 +1,252 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show StorageException;
+import 'package:imagineos/app.dart';
+import 'package:imagineos/features/library/character_library_screen.dart';
+import 'package:imagineos/features/library/character_store.dart';
+import 'package:imagineos/features/parent/parent_account.dart';
+
+final imageBytes = base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGNw09iCFTEMLQkAOOxIgSesf3AAAAAASUVORK5CYII=');
+OriginalVersion version(int number,
+        {String state = 'ready', String name = 'Space friend'}) =>
+    OriginalVersion.fromJson({
+      'request_id': 'request-$number',
+      'character_id': 'character-1',
+      'child_profile_id': 'creator-1',
+      'version_id': 'version-$number',
+      'version_number': number,
+      'name': name,
+      'object_path': 'family/file-$number',
+      'sha256': OriginalFile(imageBytes, 'image/png').checksum,
+      'state': state,
+    });
+
+class FakeStore extends CharacterStore {
+  final versions = <OriginalVersion>[];
+  final retryKeys = <String>[];
+  final reads = <String>[];
+  bool failSaveOnce = false;
+  @override
+  Future<CharacterLibrary> load() async => CharacterLibrary(
+      const [CreatorProfile('creator-1', 'Fictional creator')],
+      List.of(versions));
+  @override
+  Future<void> addCreator(String nickname) async {}
+  @override
+  Future<void> save(OriginalDraft draft) async {
+    retryKeys.add(draft.requestId);
+    if (failSaveOnce) {
+      failSaveOnce = false;
+      throw Exception('network failure');
+    }
+    versions.removeWhere((row) => row.requestId == draft.requestId);
+    versions.insert(0, version(1, name: draft.name.trim()));
+  }
+
+  @override
+  Future<void> finish(OriginalVersion pending) async {
+    versions[versions.indexOf(pending)] = version(pending.number);
+  }
+
+  @override
+  Future<void> discard(OriginalVersion pending) async {
+    versions.remove(pending);
+  }
+
+  @override
+  Future<Uint8List> read(OriginalVersion saved) async {
+    reads.add(saved.versionId);
+    return imageBytes;
+  }
+}
+
+class TestAccount extends ParentAccount {
+  String? currentEmail = 'adult@example.invalid';
+  @override
+  String? get email => currentEmail;
+  @override
+  bool get recoveringPassword => false;
+  @override
+  Future<void> signIn(String email, String password) async {}
+  @override
+  Future<void> signUp(String email, String password) async {}
+  @override
+  Future<void> resetPassword(String email) async {}
+  @override
+  Future<void> updatePassword(String password) async {}
+  @override
+  Future<void> signOut() async {
+    currentEmail = null;
+    notifyListeners();
+  }
+
+  @override
+  Future<FamilySummary> loadFamily() async => const FamilySummary(1);
+}
+
+Future<void> showLibrary(WidgetTester tester, FakeStore store,
+    {bool signedIn = true}) async {
+  await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+          body: CharacterLibraryScreen(
+    store: store,
+    signedIn: signedIn,
+    chooseFile: () async => OriginalFile(imageBytes, 'image/png'),
+  ))));
+  await tester.pumpAndSettle();
+}
+
+Future<void> tap(WidgetTester tester, String label) async {
+  final finder = find.text(label);
+  if (finder.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(finder, 250,
+        scrollable: find.byType(Scrollable).first);
+  }
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+  await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+      'binary download missing-object wrapper is distinguished from denied access',
+      () {
+    expect(
+        isMissingOriginal(const StorageException(
+            '{"statusCode":"404","error":"not_found","message":"Object not found","code":"NoSuchKey"}',
+            statusCode: '400')),
+        isTrue);
+    expect(
+        isMissingOriginal(
+            const StorageException('Permission denied', statusCode: '403')),
+        isFalse);
+    expect(
+        isMissingOriginal(const StorageException('{"code":"AccessDenied"}',
+            statusCode: '400')),
+        isFalse);
+    expect(
+        isMissingOriginal(
+            const StorageException('Invalid request', statusCode: '400')),
+        isFalse);
+  });
+  test('oversized header dimensions are rejected before pixel decoding',
+      () async {
+    final bytes = Uint8List.fromList(imageBytes);
+    final header = ByteData.sublistView(bytes);
+    header.setUint32(16, 5000, Endian.big);
+    header.setUint32(20, 5000, Endian.big);
+    var crc = 0xffffffff;
+    for (final byte in bytes.sublist(12, 29)) {
+      crc ^= byte;
+      for (var bit = 0; bit < 8; bit++) {
+        crc = (crc >> 1) ^ ((crc & 1) != 0 ? 0xedb88320 : 0);
+      }
+    }
+    header.setUint32(29, crc ^ 0xffffffff, Endian.big);
+    await expectLater(
+        validateOriginal(bytes),
+        throwsA(isA<FormatException>().having((error) => error.message,
+            'pixel limit', contains('16 megapixels'))));
+  });
+  testWidgets(
+      'reselecting an interrupted file reuses its reserved upload identity',
+      (tester) async {
+    final store = FakeStore()..versions.add(version(1, state: 'pending'));
+    await showLibrary(tester, store);
+    await tap(tester, 'Choose file again');
+    await tap(tester, 'Retry save');
+    expect(store.retryKeys.single, 'request-1');
+    expect(store.versions.length, 1);
+    expect(store.versions.single.state, 'ready');
+  });
+  test('valid original bytes are preserved and hashed', () async {
+    final original = await validateOriginal(imageBytes);
+    expect(original.bytes, imageBytes);
+    expect(original.mimeType, 'image/png');
+    expect(original.checksum, OriginalFile(imageBytes, 'image/png').checksum);
+  });
+  test('oversized and non-image files are rejected', () async {
+    await expectLater(validateOriginal(Uint8List(maxOriginalBytes + 1)),
+        throwsFormatException);
+    await expectLater(
+        validateOriginal(
+            Uint8List.fromList('<svg>not accepted</svg>'.codeUnits)),
+        throwsFormatException);
+    await expectLater(
+        validateOriginal(Uint8List.fromList([137, 80, 78, 71, 13, 10, 26, 10])),
+        throwsFormatException);
+  });
+  testWidgets('signed-out library offers no private records', (tester) async {
+    final store = FakeStore()..versions.add(version(1));
+    await showLibrary(tester, store, signedIn: false);
+    expect(find.textContaining('Sign in under For parents'), findsOneWidget);
+    expect(find.text('Space friend'), findsNothing);
+  });
+  testWidgets('failed save keeps image and retries the identical draft',
+      (tester) async {
+    final store = FakeStore()..failSaveOnce = true;
+    await showLibrary(tester, store);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Character name'), 'Space friend');
+    await tap(tester, 'Choose drawing');
+    await tap(tester, 'Save character');
+    expect(
+        find.textContaining('Your original selection is kept'), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
+    await tap(tester, 'Retry save');
+    expect(store.retryKeys.length, 2);
+    expect(store.retryKeys[0], store.retryKeys[1]);
+    expect(store.versions.length, 1);
+    await tap(tester, 'Space friend');
+    expect(store.reads.last, 'version-1');
+  });
+  testWidgets(
+      'reopened library shows latest version and can reopen earlier original',
+      (tester) async {
+    final store = FakeStore()
+      ..versions.addAll([version(2, name: 'Updated friend'), version(1)]);
+    await showLibrary(tester, store);
+    await tap(tester, 'Updated friend');
+    expect(store.reads.last, 'version-2');
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Version 1: Space friend').last);
+    await tester.pumpAndSettle();
+    expect(store.reads.last, 'version-1');
+    await tap(tester, 'Add new version');
+    expect(find.text('Add a new version'), findsOneWidget);
+    expect(store.versions.length, 2);
+  });
+  testWidgets('unfinished saves can be finished or discarded after reopening',
+      (tester) async {
+    final store = FakeStore()..versions.add(version(1, state: 'pending'));
+    await showLibrary(tester, store);
+    await tap(tester, 'Finish save');
+    expect(store.versions.single.state, 'ready');
+    store.versions.add(version(2, state: 'pending'));
+    await tap(tester, 'Refresh library');
+    await tap(tester, 'Discard unfinished');
+    expect(store.versions.length, 1);
+    expect(store.versions.single.state, 'ready');
+  });
+  testWidgets('signout closes an open original and removes private image state',
+      (tester) async {
+    final store = FakeStore()..versions.add(version(1));
+    final account = TestAccount();
+    await tester
+        .pumpWidget(ImagineOsApp(account: account, characterStore: store));
+    await tester.pumpAndSettle();
+    await tap(tester, 'Space friend');
+    expect(find.byType(Image), findsOneWidget);
+    await account.signOut();
+    await tester.pumpAndSettle();
+    expect(find.byType(Image), findsNothing);
+    expect(find.textContaining('Sign in under For parents'), findsOneWidget);
+  });
+}

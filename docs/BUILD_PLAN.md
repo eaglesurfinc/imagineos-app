@@ -34,11 +34,11 @@ Gate: an adult can sign in and return to their own family context; attempts to a
 
 ## Stage 3 — Original upload and saved-character loop
 
-- [ ] Add character, explicit version, and asset metadata plus private storage policies/migrations.
-- [ ] Upload an original drawing, name it, save it, and show it in the library.
-- [ ] Close/reopen and retrieve the same source image and identity.
-- [ ] Make intentional updates create new versions; preserve old references.
-- [ ] Test interrupted uploads, failed saves, retries, orphan cleanup, and cross-family asset access.
+- [x] Add character, explicit version, and asset metadata plus private storage policies/migrations.
+- [x] Upload an original drawing, name it, save it, and show it in the library.
+- [x] Close/reopen and retrieve the same source image and identity.
+- [x] Make intentional updates create new versions; preserve old references.
+- [x] Test interrupted uploads, failed saves, retries, orphan cleanup, and cross-family asset access.
 
 Gate: original → save → restart → reopen works without data loss. This is the first useful character milestone.
 
