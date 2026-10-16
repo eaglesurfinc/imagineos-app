@@ -4,7 +4,7 @@ Kids create. AI illustrates.
 
 This is the implementation repository: Flutter client at the root and Supabase tooling under `backend/`. Start here with any coding agent. The original product, philosophy, business, and research writings remain in the separate Founder Bible; they are not required downloads for routine build tasks.
 
-Current state: configured builds support parent accounts and an original-character library: creator nicknames, image upload, save/reopen, immutable version history, and unfinished-upload recovery. Originals live in private Supabase Storage. In-app drawing, stories, AI, protected parent locks, and export remain pending. See `docs/STATUS.md` for verification and remaining live checks.
+Current state: configured builds support parent accounts and an original-character library: creator nicknames, image upload, save/reopen, immutable version history, manual crop/rotate/flip with undo, and unfinished-upload recovery. Originals live in private Supabase Storage. In-app drawing, stories, AI, protected parent locks, and export remain pending. See `docs/STATUS.md` for verification and remaining live checks.
 
 ## Build in order
 
@@ -32,7 +32,7 @@ Follow [backend/README.md](backend/README.md). Copy `config/supabase.example.jso
 flutter run -d edge --web-port 8766 --dart-define-from-file=config/supabase.local.json
 ```
 
-These values are compiled into the browser application. Only a publishable key belongs here. Database passwords, service-role keys, secret API keys, and AI provider keys must stay server-side. Use the For parents tab to create a parent account, confirm its email, and sign in. Account access is implemented; signup confirmation and reset-email delivery still need manual verification.
+These values are compiled into the browser application. Only a publishable key belongs here. Database passwords, service-role keys, secret API keys, and AI provider keys must stay server-side. Use the For parents tab to create a parent account, confirm its email, and sign in. See `docs/STATUS.md` for live sign-in, recovery, and signup-confirmation verification results.
 
 ## Verify
 

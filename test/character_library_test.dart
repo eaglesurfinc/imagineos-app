@@ -2,11 +2,14 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as image;
 import 'package:supabase_flutter/supabase_flutter.dart' show StorageException;
 import 'package:imagineos/app.dart';
 import 'package:imagineos/features/library/character_library_screen.dart';
 import 'package:imagineos/features/library/character_store.dart';
+import 'package:imagineos/features/library/character_editor.dart';
 import 'package:imagineos/features/parent/parent_account.dart';
 
 final imageBytes = base64Decode(
@@ -29,6 +32,7 @@ class FakeStore extends CharacterStore {
   final versions = <OriginalVersion>[];
   final retryKeys = <String>[];
   final reads = <String>[];
+  final drafts = <OriginalDraft>[];
   bool failSaveOnce = false;
   @override
   Future<CharacterLibrary> load() async => CharacterLibrary(
@@ -39,12 +43,14 @@ class FakeStore extends CharacterStore {
   @override
   Future<void> save(OriginalDraft draft) async {
     retryKeys.add(draft.requestId);
+    drafts.add(draft);
     if (failSaveOnce) {
       failSaveOnce = false;
       throw Exception('network failure');
     }
     versions.removeWhere((row) => row.requestId == draft.requestId);
-    versions.insert(0, version(1, name: draft.name.trim()));
+    final number = versions.isEmpty ? 1 : versions.first.number + 1;
+    versions.insert(0, version(number, name: draft.name.trim()));
   }
 
   @override
@@ -100,7 +106,8 @@ Future<void> showLibrary(WidgetTester tester, FakeStore store,
   await tester.pumpAndSettle();
 }
 
-Future<void> tap(WidgetTester tester, String label) async {
+Future<void> tap(WidgetTester tester, String label,
+    {bool imageWork = false}) async {
   final finder = find.text(label);
   if (finder.evaluate().isEmpty) {
     await tester.scrollUntilVisible(finder, 250,
@@ -109,6 +116,11 @@ Future<void> tap(WidgetTester tester, String label) async {
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   await tester.tap(finder);
+  if (imageWork) {
+    await tester.pump();
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)));
+  }
   await tester.pumpAndSettle();
 }
 
@@ -244,9 +256,89 @@ void main() {
     await tester.pumpAndSettle();
     await tap(tester, 'Space friend');
     expect(find.byType(Image), findsOneWidget);
+    await tap(tester, 'Crop and edit', imageWork: true);
     await account.signOut();
     await tester.pumpAndSettle();
     expect(find.byType(Image), findsNothing);
+    expect(find.byType(CharacterEditor), findsNothing);
     expect(find.textContaining('Sign in under For parents'), findsOneWidget);
+  });
+
+  testWidgets('edited upload saves a new version and retries identical bytes',
+      (tester) async {
+    final store = FakeStore()..versions.add(version(1));
+    await showLibrary(tester, store);
+    await tap(tester, 'Space friend');
+    await tap(tester, 'Crop and edit', imageWork: true);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(store.drafts, isEmpty);
+    await tap(tester, 'Crop and edit', imageWork: true);
+    await tap(tester, 'Flip horizontally', imageWork: true);
+    await tap(tester, 'Use edited drawing');
+    expect(find.byType(CharacterEditor), findsNothing);
+    expect(store.drafts, isEmpty);
+    store.failSaveOnce = true;
+    await tap(tester, 'Save new version');
+    await tap(tester, 'Retry save');
+    expect(store.drafts.first.characterId, 'character-1');
+    expect(store.drafts.first.childId, 'creator-1');
+    expect(identical(store.drafts.first, store.drafts.last), isTrue);
+    expect(store.drafts.first.file.mimeType, 'image/png');
+    expect(store.versions.map((row) => row.number), [2, 1]);
+    expect(store.versions.last.versionId, 'version-1');
+  });
+
+  testWidgets('phone editor crops, undoes and resets at enlarged text',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: const TextScaler.linear(2)),
+          child: child!),
+      home: CharacterEditor(source: imageBytes),
+    ));
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await tester.pumpAndSettle();
+    final horizontal = find.byKey(const ValueKey('Keep horizontal area'));
+    await tester.scrollUntilVisible(horizontal, 200);
+    final slider = tester.widget<RangeSlider>(horizontal);
+    await tester.ensureVisible(horizontal);
+    await tester.pumpAndSettle();
+    await tester.tapAt(tester.getTopLeft(horizontal) + const Offset(26, 24));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+    expect(tester.widget<RangeSlider>(horizontal).values.start, greaterThan(0));
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+    expect(tester.widget<RangeSlider>(horizontal).values.end, 99);
+    slider.onChanged!(const RangeValues(25, 75));
+    await tester.pump();
+    await tap(tester, 'Apply crop', imageWork: true);
+    Future<int> width() async {
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, 2000));
+      await tester.pumpAndSettle();
+      return image
+          .decodePng(
+              (tester.widget<Image>(find.byType(Image)).image as MemoryImage)
+                  .bytes)!
+          .width;
+    }
+
+    expect(await width(), 4);
+    await tap(tester, 'Undo', imageWork: true);
+    expect(await width(), 8);
+    await tap(tester, 'Rotate right', imageWork: true);
+    await tap(tester, 'Reset edits', imageWork: true);
+    expect(await width(), 8);
+    expect(tester.takeException(), isNull);
   });
 }

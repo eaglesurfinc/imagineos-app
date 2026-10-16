@@ -50,6 +50,14 @@ After interruption, the library lists pending uploads: finish an already uploade
 
 Pinned `file_selector` 1.1.0, `crypto` 3.0.7, `uuid` 4.6.0, and `image` 4.12.0; the Supabase SDK remains 2.18.2. Hosted migrations are `20261015225320` (originals) and `20261015231438` (covering indexes and a composite child/family foreign key). CLI-generated filenames were aligned with hosted history. Verification uses fictional adult-created images and accounts only. No live illustration provider or additional paid service was introduced.
 
+## 2026-10-15 - Manual edits preserve uploaded originals
+
+The founder requested cropping/editing uploaded characters and a focused code cleanup. Reopen a saved character/version to crop, rotate right, or flip horizontally. Undo/reset affect only the editing session. Using the edited drawing returns a PNG to the existing explicit new-version form; only Save new version publishes it. The initial uploaded bytes and all earlier version references remain unchanged. Editing a previous version uses the same character identity, with the selected name visible for review before saving.
+
+Crop controls use labeled percentage ranges with a visible crop overlay. Explicit keyboard shortcuts move the first edge with left/right arrows and the second with Shift + arrows; the installed Flutter range control did not supply this behavior on its own. Pending crop selections must be applied or cleared before rotation/flip or accepting the drawing. Edits replay a maximum of 20 small commands from the source, avoiding decoded-image undo snapshots; failed transforms retain the previous result. EXIF orientation is baked before transformations, transparency is preserved, and animated inputs produce a still first-frame edit. Edited PNGs retain the existing 5 MB limit. Flutter Web processes commands on its main thread, so large images may take time. Closing/reloading before saving discards session edits; the stored original remains available.
+
+Extracted character details and image transformations into separate modules, removed the embedded detail implementation and unnecessary imports/image copying, and reused the existing immutable upload/retry pipeline. No dependencies, database schema, access policies, or paid services changed. A current file selection must be saved or cleared before opening another character, preventing accidental draft replacement. This bounded editing increment does not complete Stage 4's blank-canvas brush/color drawing gate.
+
 ## Decisions needed in their stages
 
 - Stage 4: minimum drawing controls.
