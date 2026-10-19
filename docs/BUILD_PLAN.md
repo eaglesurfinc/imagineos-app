@@ -64,12 +64,18 @@ Hardware capability follows the device/browser's input support. Physical tablet/
 
 ## Stage 5 — Disabled gateway and deterministic story structure
 
-- [ ] Define versioned gateway request/response contracts, trace IDs, and an explicit disabled result.
-- [ ] Keep exact dialogue in application data and implement deterministic text layout independently of image generation.
-- [ ] Define AI job states, idempotency, validation/failure contracts, retry ceilings, and draft preservation.
-- [ ] Verify disabled/failure behavior without paid calls or server credentials in the client.
+- [x] Define versioned gateway request/response contracts, trace IDs, and an explicit disabled result.
+- [x] Keep exact dialogue in application data and implement deterministic text layout independently of image generation.
+- [x] Define AI job states, idempotency, validation/failure contracts, retry ceilings, and draft preservation.
+- [x] Verify disabled/failure behavior without paid calls or server credentials in the client.
 
 Gate: requests cannot accidentally invoke a live provider, rewrite dialogue, or lose drafts.
+
+### Drawing follow-ups included at the founder's request
+
+- [x] Remove photographed warm/dim/noisy paper while protecting faint clean-scan lines and all pixels of large colored artwork; review the cleared amount and preserve originals.
+- [x] Delete active canvas selections with Delete/Backspace, preserve normal text-field behavior, and restore deletions through Undo.
+- [x] Add exact editable canvas text, eight bundled licensed fonts, adjustable size and palette/custom colors; verify draft recovery, PNG rendering and browser font/color changes.
 
 ## Stage 6 — Bounded live illustration benchmark
 
