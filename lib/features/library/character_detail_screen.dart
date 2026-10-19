@@ -6,6 +6,8 @@ import 'character_store.dart';
 import 'character_editor.dart';
 import '../drawing/drawing_drafts.dart';
 import '../drawing/drawing_studio.dart';
+import '../story/illustration_contract.dart';
+import '../story/story_draft_screen.dart';
 
 class CharacterUpdate {
   const CharacterUpdate(this.version,
@@ -22,11 +24,13 @@ class CharacterDetailScreen extends StatefulWidget {
       required this.store,
       required this.versions,
       this.draftScope = 'preview',
+      this.storyGateway = const DisabledIllustrationGateway(),
       this.drafts});
   final CharacterStore store;
   final List<OriginalVersion> versions;
   final String draftScope;
   final DrawingDraftStore? drafts;
+  final IllustrationGateway storyGateway;
   @override
   State<CharacterDetailScreen> createState() => _CharacterDetailScreenState();
 }
@@ -48,8 +52,8 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                     ? 'Delete character?'
                     : 'Delete version ${_version.number}?'),
                 content: Text(whole
-                    ? 'Permanently delete "${_version.name}" and all its versions, original drawings, edits, and unfinished uploads? This cannot be undone.'
-                    : 'Permanently delete version ${_version.number} of "${_version.name}" and its drawing? Other versions will stay. This cannot be undone.'),
+                    ? 'Permanently delete "${_version.name}" and all its versions, original drawings, edits, unfinished uploads, and page drafts on this device? This cannot be undone.'
+                    : 'Permanently delete version ${_version.number} of "${_version.name}", its drawing, and its page draft on this device? Other versions will stay. This cannot be undone.'),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(dialogContext, false),
@@ -73,11 +77,13 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
       final session = drafts.generation;
       for (final version in widget.versions
           .where((row) => whole || row.versionId == _version.versionId)) {
-        try {
-          await drafts.drop(
-              drafts.key(widget.draftScope, 'version.${version.versionId}'),
-              session);
-        } catch (_) {}
+        for (final kind in ['version', 'story']) {
+          try {
+            await drafts.drop(
+                drafts.key(widget.draftScope, '$kind.${version.versionId}'),
+                session);
+          } catch (_) {}
+        }
       }
       if (whole) {
         try {
@@ -123,6 +129,32 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
       if (mounted)
         setState(
             () => _error = 'Could not open the editor. Retry the image first.');
+    } finally {
+      if (mounted) setState(() => _editing = false);
+    }
+  }
+
+  Future<void> _story() async {
+    if (_editing) return;
+    setState(() {
+      _editing = true;
+      _error = null;
+    });
+    final selected = _version;
+    try {
+      final bytes = await _image;
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(MaterialPageRoute(
+          builder: (_) => StoryDraftScreen(
+              version: selected,
+              image: bytes,
+              draftScope: widget.draftScope,
+              drafts: widget.drafts,
+              gateway: widget.storyGateway)));
+    } catch (_) {
+      if (mounted)
+        setState(() => _error =
+            'Could not open the page draft. Retry the original image first.');
     } finally {
       if (mounted) setState(() => _editing = false);
     }
@@ -200,6 +232,10 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                   : () => _edit(studio: true),
               icon: const Icon(Icons.draw),
               label: const Text('Open drawing studio')),
+          FilledButton.tonalIcon(
+              onPressed: _editing || _deleteWhole != null ? null : _story,
+              icon: const Icon(Icons.auto_stories_outlined),
+              label: const Text('Plan a story page')),
           if (_deleteWhole == null) ...[
             if (widget.versions.length > 1)
               OutlinedButton.icon(

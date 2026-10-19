@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-foreach ($toolName in @('flutter', 'dart')) {
+foreach ($toolName in @('flutter', 'dart', 'node')) {
     if ($null -eq (Get-Command $toolName -ErrorAction SilentlyContinue)) {
         throw "$toolName is not on PATH. Run scripts/doctor.ps1 for setup guidance."
     }
@@ -23,6 +23,9 @@ try {
         & flutter test
         if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
     }
+
+    & node --test backend/tests/illustration_gateway_test.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Gateway contract tests failed.' }
 
     & flutter build web
     if ($LASTEXITCODE -ne 0) { throw 'Web build failed.' }

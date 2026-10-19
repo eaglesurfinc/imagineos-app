@@ -18,6 +18,8 @@ import 'drawing_shapes.dart';
 import 'drawing_input.dart';
 import 'pen_setup.dart';
 import 'drawing_download.dart';
+import 'drawing_text_editor.dart';
+import 'drawing_text_layout.dart';
 
 Future<OriginalFile?> openDrawingStudio(BuildContext context,
         {required String draftKey,
@@ -54,6 +56,7 @@ class _DrawingStudioState extends State<DrawingStudio> {
   int _color = 0xff7959c3;
   double _width = 10, _opacity = 1, _tolerance = 30;
   bool _filled = false, _busy = true, _showCursor = false;
+  bool _dialogOpen = false;
   String _status = 'Opening your workspace…';
   List<DrawingPoint> _points = [];
   int? _pointer;
@@ -258,6 +261,10 @@ class _DrawingStudioState extends State<DrawingStudio> {
       _inverted = false;
     });
     if (points.isEmpty || _busy) return;
+    if (tool == DrawingTool.text) {
+      await _textAt(points.first);
+      return;
+    }
     if (tool.isSelection) {
       final polygon = tool == DrawingTool.select
           ? selectionRectangle(points.first, points.last)
@@ -333,7 +340,13 @@ class _DrawingStudioState extends State<DrawingStudio> {
         return;
       }
       if (operation.extractsArtwork) {
-        final preview = await reviewDrawingExtraction(context, request, result);
+        setState(() => _dialogOpen = true);
+        RasterResult? preview;
+        try {
+          preview = await reviewDrawingExtraction(context, request, result);
+        } finally {
+          if (mounted) setState(() => _dialogOpen = false);
+        }
         if (!mounted) return;
         if (preview == null) {
           setState(() => _busy = false);
@@ -358,6 +371,64 @@ class _DrawingStudioState extends State<DrawingStudio> {
           _busy = false;
           _status =
               'Could not finish that change. Your drawing is kept. Try a smaller selection.';
+        });
+    }
+  }
+
+  Future<void> _textAt(DrawingPoint point) async {
+    if (_busy || _document == null) return;
+    final strokes = _document!.frame.strokes;
+    var index = -1;
+    for (var i = strokes.length - 1; i >= 0; i--) {
+      if (strokes[i].tool == DrawingTool.text &&
+          drawingTextBounds(strokes[i]).contains(point.offset)) {
+        index = i;
+        break;
+      }
+    }
+    if (index < 0 && strokes.length >= 500) {
+      setState(() => _status =
+          'Merge paint or save this drawing before adding more items.');
+      return;
+    }
+    final initial = index >= 0
+        ? strokes[index]
+        : DrawingStroke(
+            tool: DrawingTool.text,
+            points: [point],
+            color: _color,
+            width: _width,
+            opacity: _opacity,
+            textWidth: math.max(1, _document!.width - point.x),
+            selection: List.of(_selection));
+    setState(() {
+      _busy = true;
+      _dialogOpen = true;
+    });
+    try {
+      final updated = await editDrawingText(context,
+          initial: initial,
+          maxHeight: _document!.height - initial.points.first.y);
+      if (!mounted || _session != _drafts.generation) return;
+      if (updated != null) {
+        final next = List<DrawingStroke>.of(strokes);
+        if (index < 0) {
+          next.add(updated);
+        } else {
+          next[index] = updated;
+        }
+        setState(() {
+          _document!.commit(_document!.frame.copyWith(strokes: next));
+          _status =
+              'Text placed. Tap it with the Text tool to edit, or select an area and press Delete. Undo restores changes.';
+        });
+        _checkpointDraft();
+      }
+    } finally {
+      if (mounted)
+        setState(() {
+          _busy = false;
+          _dialogOpen = false;
         });
     }
   }
@@ -477,6 +548,15 @@ class _DrawingStudioState extends State<DrawingStudio> {
     if (_busy || event is KeyUpEvent || _document == null)
       return KeyEventResult.ignored;
     final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.delete ||
+        key == LogicalKeyboardKey.backspace) {
+      if (_selection.isEmpty || _points.isNotEmpty || event is! KeyDownEvent) {
+        return KeyEventResult.ignored;
+      }
+      unawaited(_pixel(
+          DrawingPixelOperation.clearSelection, const DrawingPoint(0, 0)));
+      return KeyEventResult.handled;
+    }
     var movement = Offset.zero;
     if (key == LogicalKeyboardKey.arrowLeft) movement = const Offset(-8, 0);
     if (key == LogicalKeyboardKey.arrowRight) movement = const Offset(8, 0);
@@ -586,7 +666,8 @@ class _DrawingStudioState extends State<DrawingStudio> {
         _toolChoices(shapes: true),
         if (_selection.isNotEmpty) ...[
           const SizedBox(height: 8),
-          const Text('Selection active: edits stay inside the blue outline.'),
+          const Text(
+              'Selection active: edits stay inside the blue outline. With the canvas focused, press Delete or Backspace to clear it. Undo restores it.'),
           Wrap(spacing: 6, children: [
             TextButton(
                 onPressed: _busy ? null : () => setState(() => _selection = []),
@@ -768,7 +849,7 @@ class _DrawingStudioState extends State<DrawingStudio> {
                         },
                         child: Semantics(
                             label:
-                                'Drawing canvas. Arrow keys move the cursor. Space starts or finishes a stroke. Escape cancels. Two fingers zoom.',
+                                'Drawing canvas. Arrow keys move the cursor. Space starts or finishes a stroke. Delete or Backspace clears the selection. Escape cancels. Two fingers zoom.',
                             child: MouseRegion(
                                 cursor: _tool.isSelection
                                     ? SystemMouseCursors.basic
@@ -911,7 +992,7 @@ class _DrawingStudioState extends State<DrawingStudio> {
                                           style: const TextStyle(
                                               fontWeight: FontWeight.bold)),
                                     ]))),
-                        if (_busy)
+                        if (_busy && !_dialogOpen)
                           const LinearProgressIndicator(
                               semanticsLabel: 'Preparing drawing'),
                         Expanded(

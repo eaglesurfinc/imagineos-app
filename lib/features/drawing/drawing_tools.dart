@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'drawing_document.dart';
 
 const drawingToolNames = <DrawingTool, String>{
+  DrawingTool.text: 'Text',
   DrawingTool.select: 'Select area',
   DrawingTool.lasso: 'Lasso select',
   DrawingTool.pen: 'Pen',
@@ -29,6 +30,7 @@ const drawingToolNames = <DrawingTool, String>{
   DrawingTool.arrow: 'Arrow'
 };
 const drawingToolIcons = <DrawingTool, IconData>{
+  DrawingTool.text: Icons.text_fields,
   DrawingTool.select: Icons.near_me_outlined,
   DrawingTool.lasso: Icons.gesture,
   DrawingTool.pen: Icons.edit,

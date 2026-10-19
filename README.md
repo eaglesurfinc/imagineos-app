@@ -4,7 +4,7 @@ Kids create. AI illustrates.
 
 This is the implementation repository: Flutter client at the root and Supabase tooling under `backend/`. Start here with any coding agent. The original product, philosophy, business, and research writings remain in the separate Founder Bible; they are not required downloads for routine build tasks.
 
-Current implementation: parent accounts, creator nicknames, private character upload/save/reopen, immutable versions, crop/rotate/flip, confirmed whole-character or selected-version deletion, and a drawing studio with kits, colors, shapes, fill, erasing, undo/redo and local draft recovery. Extract paper artwork or manually outline a drawing in a busy photo, review it, then save a new version. Originals live in private Supabase Storage. Stories, AI, protected parent locks, and export remain pending. See `docs/STATUS.md` for verification and deployment status.
+Current implementation: parent accounts, creator nicknames, private character upload/save/reopen, immutable versions, crop/rotate/flip, confirmed whole-character or selected-version deletion, and a drawing studio with kits, colors, shapes, fill, erasing, undo/redo and local draft recovery. Extract paper artwork or manually outline a drawing in a busy photo, review it, then save a new version. Originals live in private Supabase Storage. Page planning now keeps exact dialogue/narration in a device draft and fixed-layout preview; the authenticated illustration gateway explicitly returns disabled. Live AI, cloud-saved stories, protected parent locks, and story export remain pending. See `docs/STATUS.md` for verification and deployment status.
 
 ## Build in order
 
@@ -44,13 +44,21 @@ Save to device exports the current canvas as a PNG without a parent account or c
 
 Two fingers pan/zoom without painting. Compatible pens use standard device input, including pressure and inverted eraser tips when reported. Pen only lets fingers navigate while a pen draws. Connect a pen explains OS pairing and shows how to check the input indicator; the app does not pair Bluetooth accessories itself. Bluetooth/USB/built-in pen capability depends on the tablet and browser. Physical-device checks remain necessary; the current runnable target is web.
 
+## Canvas text and page planning
+
+Choose Text in the drawing tools, then tap a canvas point. Type exact words, pick one of eight bundled fonts, set size and choose palette/custom colors. Tap existing text with the Text tool to edit it. Device drafts retain text items until pixel cleanup, selection deletion or Merge paint flattens them; Undo restores editability. Cloud versions/downloads are PNG pixels. Select area or Lasso select, focus the canvas and press Delete/Backspace to clear that region; Undo restores it. Text fields keep their normal deletion behavior.
+
+Paper extraction now estimates photo noise as well as lighting and warm/dim page color. Review reports how much paper was cleared; change strength and Compare original before applying. Ambiguous art/page colors still need manual review.
+
+For story planning, open a saved character version and choose Plan a story page. Enter a scene, exact dialogue and optional narration, then review the original-art page draft. Check illustration availability returns disabled; it makes no paid AI call. Reload/reopen the same version to recover its local page draft. Recovery is best effort and sign-out clears it. No cloud story/export is claimed. The [gateway contract](docs/ILLUSTRATION_GATEWAY.md) records fields, access, retries and the live-generation boundary.
+
 ## Verify
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check.ps1
 ```
 
-The check script resolves dependencies, checks formatting, analyzes code, runs tests when present, and builds web. Check the hosted endpoints separately with `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-backend.ps1`. It makes no paid AI calls. For a configured web build use `flutter build web --dart-define-from-file=config/supabase.local.json`.
+With Flutter/Dart and Node 24+ on PATH, the check script resolves dependencies, checks formatting, analyzes code, runs Flutter and offline gateway tests, and builds web. Check the hosted endpoints separately with `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-backend.ps1`. It makes no paid AI calls. For a configured web build use `flutter build web --dart-define-from-file=config/supabase.local.json`.
 
 ## Vercel shell deployment
 

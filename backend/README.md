@@ -88,3 +88,17 @@ Prepare fictional accounts and apply their generated create SQL as above. Serve 
 Always use the Storage/API deletion cleanup and Auth cleanup procedure above, including after a failed browser run. This test creates no paid calls, sends no email, and must never target real family accounts.
 
 For the later precision/input/device-save increment, serve an **offline** release (`flutter build web`, then `python -m http.server 8766 --bind 127.0.0.1 --directory build/web`) and run `node backend/tests/drawing_precision_browser.cjs`. It seeds fictional device drafts without backend accounts, checks line-preserving paper extraction and comparison, selection/delete/undo, shape clips and lasso cutouts, connected removal, pen pressure events, touch navigation without stray paint, and an actual downloaded transparent PNG. Fictional screenshots/downloads stay under ignored `build/drawing-browser-downloads/`. No Auth fixtures, SQL, Storage cleanup, or paid services are involved. Browser input emulation does not verify physical Bluetooth pairing or every tablet's hardware.
+
+## Disabled illustration gateway (Stage 5)
+
+The versioned contract, source/reference rules, recovery and two-attempt manual retry ceiling are in [ILLUSTRATION_GATEWAY.md](../docs/ILLUSTRATION_GATEWAY.md). The `illustration-gateway` function requires JWT verification, validates the user and reads the exact source through caller-scoped RLS. Its only authorized success is disabled, with null output, zero provider attempts and zero cost. No AI key, provider adapter, secret client credential, new dependency or schema migration is involved.
+
+Run `npm test --prefix backend` with Node 24+ for offline handler tests. After preparing the two fictional Auth fixtures as above, run `node backend/tests/illustration_gateway_smoke.mjs`. It creates fictional ready source versions and checks disabled replay, correlation/hash, two-family access, mismatched references, override rejection, anonymous denial and CORS. It writes ignored `config/stage5-fixture.local.json` for `story_browser_smoke.cjs`, which needs the configured release served on port 8766. Always perform the existing Storage/API deletion cleanup and zero-object check, then Auth cleanup and zero-account check, before removing these ignored fixture files. The browser captures fictional screenshots under ignored `build/story-browser/`.
+
+To deploy this single disabled function from an authenticated CLI, run from the repository root:
+
+```powershell
+.\backend\node_modules\.bin\supabase.cmd functions deploy illustration-gateway --workdir backend --project-ref hgsivbqmbcliqbstrkdz --use-api
+```
+
+The pinned CLI help confirms `--use-api` bundles server-side without Docker. Keep JWT verification enabled; do not use `--no-verify-jwt` or `--prune`. Deployment replaces this named function immediately on the dedicated development target. The initial deployment was made through the connected Supabase tool; local CLI login is still separate.

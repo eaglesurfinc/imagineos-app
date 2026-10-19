@@ -22,3 +22,38 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/fonts/manifest.json
+    - assets/fonts/nunito/OFL.txt
+    - assets/fonts/patrickhand/OFL.txt
+    - assets/fonts/balsamiqsans/OFL.txt
+    - assets/fonts/caveat/OFL.txt
+    - assets/fonts/fredoka/OFL.txt
+    - assets/fonts/comicneue/OFL.txt
+    - assets/fonts/lora/OFL.txt
+    - assets/fonts/baloo2/OFL.txt
+  fonts:
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/nunito/font.ttf
+    - family: Patrick Hand
+      fonts:
+        - asset: assets/fonts/patrickhand/font.ttf
+    - family: Balsamiq Sans
+      fonts:
+        - asset: assets/fonts/balsamiqsans/font.ttf
+    - family: Caveat
+      fonts:
+        - asset: assets/fonts/caveat/font.ttf
+    - family: Fredoka
+      fonts:
+        - asset: assets/fonts/fredoka/font.ttf
+    - family: Comic Neue
+      fonts:
+        - asset: assets/fonts/comicneue/font.ttf
+    - family: Lora
+      fonts:
+        - asset: assets/fonts/lora/font.ttf
+    - family: Baloo 2
+      fonts:
+        - asset: assets/fonts/baloo2/font.ttf

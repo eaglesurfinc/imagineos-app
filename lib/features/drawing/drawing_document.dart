@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui';
+import 'drawing_fonts.dart';
 
 enum DrawingTool {
   pen,
@@ -27,7 +28,8 @@ enum DrawingTool {
   hexagon,
   star,
   heart,
-  arrow;
+  arrow,
+  text;
 
   bool get isShape => const {
         line,
@@ -65,12 +67,18 @@ class DrawingStroke {
       required this.width,
       required this.opacity,
       this.filled = false,
+      this.text = '',
+      this.fontFamily = 'Nunito',
+      this.fontSize = 48,
+      this.textWidth = 400,
       this.selection = const []});
   final DrawingTool tool;
   final List<DrawingPoint> points;
   final int color;
   final double width, opacity;
   final bool filled;
+  final String text, fontFamily;
+  final double fontSize, textWidth;
   final List<DrawingPoint> selection;
   Map<String, dynamic> toJson() => {
         'tool': tool.name,
@@ -79,6 +87,12 @@ class DrawingStroke {
         'width': width,
         'opacity': opacity,
         'filled': filled,
+        if (tool == DrawingTool.text) ...{
+          'text': text,
+          'font_family': fontFamily,
+          'font_size': fontSize,
+          'text_width': textWidth,
+        },
         if (selection.isNotEmpty)
           'selection': selection.map((p) => p.toJson()).toList()
       };
@@ -91,6 +105,10 @@ class DrawingStroke {
       width: (json['width'] as num).toDouble(),
       opacity: (json['opacity'] as num).toDouble(),
       filled: json['filled'] as bool,
+      text: json['text'] as String? ?? '',
+      fontFamily: json['font_family'] as String? ?? 'Nunito',
+      fontSize: (json['font_size'] as num?)?.toDouble() ?? 48,
+      textWidth: (json['text_width'] as num?)?.toDouble() ?? 400,
       selection: ((json['selection'] as List?) ?? const [])
           .map((p) => DrawingPoint.fromJson(p as List))
           .toList());
@@ -174,6 +192,16 @@ class DrawingDocument {
         frame.strokes.any((s) =>
             s.points.length > 20000 ||
             s.selection.length > 6000 ||
+            (s.tool == DrawingTool.text &&
+                (s.text.length > 2000 ||
+                    s.points.length != 1 ||
+                    !drawingFonts.containsKey(s.fontFamily) ||
+                    !s.fontSize.isFinite ||
+                    s.fontSize < 8 ||
+                    s.fontSize > 160 ||
+                    !s.textWidth.isFinite ||
+                    s.textWidth < 1 ||
+                    s.textWidth > 1536)) ||
             !s.width.isFinite ||
             s.width < 1 ||
             s.width > 100 ||

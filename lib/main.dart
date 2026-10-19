@@ -5,6 +5,7 @@ import 'app.dart';
 import 'supabase_config.dart';
 import 'features/parent/parent_account.dart';
 import 'features/library/character_store.dart';
+import 'features/story/illustration_contract.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,9 @@ Future<void> main() async {
       );
     }
     runApp(ImagineOsApp(
+      storyGateway: config == null
+          ? const DisabledIllustrationGateway()
+          : SupabaseIllustrationGateway(Supabase.instance.client),
       characterStore: config == null
           ? null
           : SupabaseCharacterStore(Supabase.instance.client),

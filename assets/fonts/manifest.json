@@ -1,0 +1,62 @@
+{
+  "repository": "https://github.com/google/fonts",
+  "commit": "47d54ca1ebb14fd864695f1d39dc734f39017c33",
+  "fonts": [
+    {
+      "family": "Nunito",
+      "path": "assets/fonts/nunito/font.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/nunito/Nunito%5Bwght%5D.ttf",
+      "sha256": "bb55a5ca5c2042335b3991af27c4d0705d0ef41cac6164ac737fd8f2a1e85207",
+      "bytes": 276932
+    },
+    {
+      "family": "Patrick Hand",
+      "path": "assets/fonts/patrickhand/font.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/patrickhand/PatrickHand-Regular.ttf",
+      "sha256": "0f173b3e6cb6d1af25babf7f0057c5ac4ee11f9992b0469bb817e967ef4ad0fc",
+      "bytes": 214772
+    },
+    {
+      "family": "Balsamiq Sans",
+      "path": "assets/fonts/balsamiqsans/font.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/balsamiqsans/BalsamiqSans-Regular.ttf",
+      "sha256": "fcc9c00a9ad6e78673fa84653745569097241d99b5d1387a23f395858ed46b7e",
+      "bytes": 407528
+    },
+    {
+      "family": "Caveat",
+      "path": "assets/fonts/caveat/font.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/caveat/Caveat%5Bwght%5D.ttf",
+      "sha256": "0bdb6b660482d31531b3945849fba5916b3ef8695da7024a9e6b9ee3c4157988",
+      "bytes": 403648
+    },
+    {
+      "family": "Fredoka",
+      "path": "assets/fonts/fredoka/font.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/fredoka/Fredoka%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "2ba02e68b152868aef9ba28e24b3648c7d457fe6f25c761f2c2c53fb61a73fc8",
+      "bytes": 159184
+    },
+    {
+      "family": "Comic Neue",
+      "path": "assets/fonts/comicneue/font.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/comicneue/ComicNeue-Regular.ttf",
+      "sha256": "a0ee5a37c8b27c4db0700137d928598b1e23b0089e1546a8961909176b779360",
+      "bytes": 57248
+    },
+    {
+      "family": "Lora",
+      "path": "assets/fonts/lora/font.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/lora/Lora%5Bwght%5D.ttf",
+      "sha256": "822a6621ccbe8d97d20ac88c1c41f5615c9c2c202eaa75f272cd452aac6475a7",
+      "bytes": 212196
+    },
+    {
+      "family": "Baloo 2",
+      "path": "assets/fonts/baloo2/font.ttf",
+      "source": "https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/baloo2/Baloo2%5Bwght%5D.ttf",
+      "sha256": "d47a6852548059b1db49a1319d06d499d546c3fa2237cf9eee9c43c8abb025c2",
+      "bytes": 683200
+    }
+  ]
+}

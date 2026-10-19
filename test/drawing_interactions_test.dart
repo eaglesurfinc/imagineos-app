@@ -1,7 +1,6 @@
-import 'dart:typed_data';
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image;
 import 'package:imagineos/features/drawing/drawing_document.dart';
@@ -62,46 +61,69 @@ void main() {
     expect(png.getPixel(0, 0).a, 0);
     expect(png.any((p) => p.a > 0), isTrue);
   });
-  testWidgets('selection deletes only the chosen pixels and undo restores them',
-      (tester) async {
-    final photo = image.Image(width: 32, height: 32, numChannels: 4);
-    image.fill(photo, color: image.ColorRgba8(230, 35, 75, 255));
-    final drafts = MemoryDrawingDrafts();
-    await tester.pumpWidget(MaterialApp(
-        home: DrawingStudio(
-            source: image.encodePng(photo),
-            draftKey: 'selection',
-            drafts: drafts)));
-    await settleImage(tester);
-    Future<void> tap(String label) async {
-      await tester.ensureVisible(find.text(label));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(label));
+  for (final key in [
+    null,
+    LogicalKeyboardKey.delete,
+    LogicalKeyboardKey.backspace
+  ]) {
+    testWidgets(
+        'selection deletion via ${key?.keyLabel ?? 'button'} stays bounded and undo restores it',
+        (tester) async {
+      final photo = image.Image(width: 32, height: 32, numChannels: 4);
+      image.fill(photo, color: image.ColorRgba8(230, 35, 75, 255));
+      final drafts = MemoryDrawingDrafts();
+      await tester.pumpWidget(MaterialApp(
+          home: DrawingStudio(
+              source: image.encodePng(photo),
+              draftKey: 'selection',
+              drafts: drafts)));
       await settleImage(tester);
-    }
+      Future<void> tap(String label) async {
+        await tester.ensureVisible(find.text(label));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(label));
+        await settleImage(tester);
+      }
 
-    await tap('Select area');
-    final canvas = find.byKey(const ValueKey('drawing-canvas'));
-    await tester.scrollUntilVisible(canvas, -200);
-    await tester.pumpAndSettle();
-    final rect = tester.getRect(canvas);
-    await tester.dragFrom(
-        rect.topLeft + Offset(rect.width * .05, rect.height * .05),
-        Offset(rect.width * .4, rect.height * .9));
-    await settleImage(tester);
-    await tap('Delete selection');
-    var doc = DrawingDocument.decode(drafts.values['selection']!);
-    var png = image.decodePng(doc.frame.base!)!;
-    expect(png.getPixel(4, 16).a, 0);
-    expect(png.getPixel(24, 16).r, 230);
-    expect(png.getPixel(24, 16).a, 255);
-    await tester.tap(find.byTooltip('Undo'));
-    await settleImage(tester);
-    doc = DrawingDocument.decode(drafts.values['selection']!);
-    png = image.decodePng(doc.frame.base!)!;
-    expect(png.getPixel(4, 16).a, 255);
-    expect(tester.takeException(), isNull);
-  });
+      await tap('Select area');
+      final canvas = find.byKey(const ValueKey('drawing-canvas'));
+      await tester.scrollUntilVisible(canvas, -200);
+      await tester.pumpAndSettle();
+      final rect = tester.getRect(canvas);
+      await tester.dragFrom(
+          rect.topLeft + Offset(rect.width * .05, rect.height * .05),
+          Offset(rect.width * .4, rect.height * .9));
+      await settleImage(tester);
+      if (key == null) {
+        await tap('Delete selection');
+      } else {
+        await tester.sendKeyEvent(key);
+        await settleImage(tester);
+      }
+      var doc = DrawingDocument.decode(drafts.values['selection']!);
+      var png = image.decodePng(doc.frame.base!)!;
+      expect(png.getPixel(4, 16).a, 0);
+      expect(png.getPixel(24, 16).r, 230);
+      expect(png.getPixel(24, 16).a, 255);
+      await tester.tap(find.byTooltip('Undo'));
+      await settleImage(tester);
+      doc = DrawingDocument.decode(drafts.values['selection']!);
+      png = image.decodePng(doc.frame.base!)!;
+      expect(png.getPixel(4, 16).a, 255);
+      if (key != null) {
+        // A focused text field must consume deletion without clearing the canvas.
+        final before = drafts.values['selection'];
+        await tap('Custom color');
+        await tester.enterText(find.byType(TextField), 'ABCDEF');
+        await tester.sendKeyEvent(key);
+        await settleImage(tester);
+        expect(drafts.values['selection'], before);
+        await tester.tap(find.text('Cancel'));
+        await settleImage(tester);
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
   testWidgets(
       'studio records normalized pen pressure, ignores a palm, and erases with an inverted pen',
       (tester) async {

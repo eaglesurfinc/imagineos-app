@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image;
@@ -9,6 +10,84 @@ import 'package:imagineos/features/drawing/drawing_shapes.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+      'large colored artwork is preserved at every pixel including tile-edge slivers',
+      () {
+    final photo = image.Image(width: 256, height: 256, numChannels: 4);
+    for (final p in photo) {
+      final shade = (20 * p.x / 255 + 12 * p.y / 255).round();
+      final noise = ((p.x * 17 + p.y * 31) % 13) - 6;
+      final d = math.pow((p.x - 128) / 73, 2) + math.pow((p.y - 128) / 87, 2);
+      if (d < 1) {
+        p.setRgba(225, 35, 75, 255);
+      } else {
+        p.setRgba(
+            235 - shade + noise, 225 - shade + noise, 203 - shade + noise, 255);
+      }
+    }
+    final source = image.encodePng(photo);
+    for (final strength in [0.0, 30.0, 100.0]) {
+      final cut = image.decodePng(processDrawingPixels(RasterRequest(source,
+              operation: DrawingPixelOperation.paper, tolerance: strength))
+          .bytes)!;
+      for (final p in photo.where((p) => p.g == 35)) {
+        final actual = cut.getPixel(p.x, p.y);
+        expect([actual.r, actual.g, actual.b, actual.a], [225, 35, 75, 255],
+            reason: 'artwork at ${p.x},${p.y}, strength $strength');
+      }
+    }
+  });
+  test(
+      'photographed warm paper clears despite noise, JPEG compression and shadows',
+      () {
+    final photo = image.Image(width: 256, height: 192, numChannels: 4);
+    final random = math.Random(51);
+    for (final p in photo) {
+      final shade = (24 * p.x / 255 + 9 * p.y / 191).round();
+      final noise = random.nextInt(13) - 6;
+      final ink = p.y >= 88 && p.y <= 90 && p.x >= 20 && p.x <= 235 ? 36 : 0;
+      p.setRgba(235 - shade + noise - ink, 225 - shade + noise - ink,
+          203 - shade + noise - ink, 255);
+    }
+    final bytes = image.encodeJpg(photo, quality: 78);
+    final before = Uint8List.fromList(bytes);
+    final cut = image.decodePng(processDrawingPixels(
+            RasterRequest(bytes, operation: DrawingPixelOperation.paper))
+        .bytes)!;
+    var empty = 0, cleared = 0, lines = 0, kept = 0;
+    for (final p in cut) {
+      if (p.y < 70 || p.y > 110) {
+        empty++;
+        if (p.a < 16) cleared++;
+      }
+      if (p.y == 89 && p.x > 35 && p.x < 220) {
+        lines++;
+        if (p.a == 255) kept++;
+      }
+    }
+    expect(cleared / empty, greaterThan(.95),
+        reason: 'most empty photographed page must actually disappear');
+    expect(kept / lines, greaterThan(.95),
+        reason: 'pencil line must remain opaque');
+    expect(bytes, before);
+  });
+  test('dim warm page is extracted instead of silently returning unchanged',
+      () {
+    final photo = image.Image(width: 64, height: 64, numChannels: 4);
+    image.fill(photo, color: image.ColorRgba8(182, 174, 151, 255));
+    image.drawLine(photo,
+        x1: 8,
+        y1: 32,
+        x2: 55,
+        y2: 32,
+        color: image.ColorRgba8(108, 100, 77, 255));
+    final cut = image.decodePng(processDrawingPixels(RasterRequest(
+            image.encodePng(photo),
+            operation: DrawingPixelOperation.paper))
+        .bytes)!;
+    expect(cut.getPixel(10, 10).a, 0);
+    expect(cut.getPixel(30, 32).a, 255);
+  });
   test(
       'paper cleanup follows gradual page lighting and preserves a crossing pencil line',
       () {

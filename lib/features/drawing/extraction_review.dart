@@ -54,9 +54,15 @@ class _ExtractionReviewState extends State<_ExtractionReview> {
             width: 520,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Text(operation == DrawingPixelOperation.paper
-                  ? 'Cleanup estimates the empty page and protects faint marks. Compare the original before accepting. If paper and artwork look identical, keep the original and erase manually.'
+                  ? 'Cleanup estimates page color, lighting and photo noise. Increase strength for remaining paper, or lower it to keep faint marks. Compare the original before accepting.'
                   : 'Check the boundary before accepting. Lower tolerance removes a narrower color range. A selection limits cleanup to its outline.'),
               const SizedBox(height: 12),
+              if (_result.paperCleared != null)
+                Semantics(
+                    liveRegion: true,
+                    child: Text(_result.paperCleared == 0
+                        ? 'No paper was cleared. Adjust strength, crop closer to the page, or use Outline cutout for a busy background.'
+                        : 'Paper cleared in ${(_result.paperCleared! * 100).toStringAsFixed(1)}% of the image. Check the drawing lines before accepting.')),
               SizedBox(
                   height: 240,
                   child: CustomPaint(

@@ -50,10 +50,12 @@ class RasterRequest {
 }
 
 class RasterResult {
-  const RasterResult(this.bytes, this.width, this.height, {this.color});
+  const RasterResult(this.bytes, this.width, this.height,
+      {this.color, this.paperCleared});
   final Uint8List bytes;
   final int width, height;
   final int? color;
+  final double? paperCleared;
 }
 
 RasterResult processDrawingPixels(RasterRequest request) {
@@ -70,6 +72,7 @@ RasterResult processDrawingPixels(RasterRequest request) {
   if (decoded == null)
     throw const FormatException('This image could not be opened.');
   var source = image.bakeOrientation(decoded).convert(numChannels: 4);
+  double? paperCleared;
   final selection = request.selection.length >= 3
       ? polygonMask(source.width, source.height, request.selection)
       : null;
@@ -81,7 +84,8 @@ RasterResult processDrawingPixels(RasterRequest request) {
           height: (source.height * scale).round());
     }
   } else if (request.operation == DrawingPixelOperation.paper) {
-    removeDrawingPaper(source, request.tolerance, selection);
+    paperCleared = removeDrawingPaper(source, request.tolerance, selection) /
+        (source.width * source.height);
   } else if (request.operation == DrawingPixelOperation.fill ||
       request.operation == DrawingPixelOperation.remove) {
     editDrawingRegion(source,
@@ -119,5 +123,6 @@ RasterResult processDrawingPixels(RasterRequest request) {
   if (bytes.length > 5 * 1024 * 1024)
     throw const FormatException(
         'This drawing exceeds 5 MB. Crop the original first.');
-  return RasterResult(bytes, source.width, source.height);
+  return RasterResult(bytes, source.width, source.height,
+      paperCleared: paperCleared);
 }

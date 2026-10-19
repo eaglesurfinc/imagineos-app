@@ -21,6 +21,8 @@ The founder expanded Stage 4 on 2026-10-19: provide drawing kits, useful colors 
 
 The same day's follow-up requires paper cleanup that protects faint drawing lines, more precise connected-area removal, rectangular pointer/lasso selections for targeted edits, additional shapes, and touch/pen input through the current device. Use device-reported pressure and eraser input where available; prioritize pen strokes over finger contact and provide touch navigation plus a pen-only option. Support compatible pens exposed by the operating system without a vendor-specific integration. Bluetooth pairing belongs to device settings; a paired accessory alone does not establish digitizer compatibility. Add Save to device for a PNG copy of the current canvas, including transparency and offline use, without changing the cloud library or saved originals.
 
+The founder's Stage 5 follow-ups on 2026-10-19 include correcting paper extraction that fails on photographed pages, keyboard Delete/Backspace for the active canvas selection with Undo and safe text-field focus, and a canvas text tool with a useful choice of fonts, sizes and changeable colors. Preserve exact typed text, editable device recovery and PNG saving; retain the source drawing and reviewed extraction. Bundle licensed fonts rather than adding a runtime font-service requirement.
+
 ## Data and access
 
 - Supabase Auth with explicit parent/child/family relationships. Minimize child data; do not require child email merely to identify a creator profile.

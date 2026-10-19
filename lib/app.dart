@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'theme.dart';
 
 import 'features/drawing/drawing_drafts.dart';
+import 'features/story/illustration_contract.dart';
 
 import 'features/library/library_screen.dart';
 import 'features/library/character_store.dart';
@@ -14,9 +15,14 @@ import 'features/parent/parent_access_screen.dart';
 import 'features/parent/parent_account.dart';
 
 class ImagineOsApp extends StatelessWidget {
-  const ImagineOsApp({super.key, this.account, this.characterStore});
+  const ImagineOsApp(
+      {super.key,
+      this.account,
+      this.characterStore,
+      this.storyGateway = const DisabledIllustrationGateway()});
   final ParentAccount? account;
   final CharacterStore? characterStore;
+  final IllustrationGateway storyGateway;
 
   @override
   Widget build(BuildContext context) {
@@ -24,15 +30,20 @@ class ImagineOsApp extends StatelessWidget {
       title: 'ImagineOS',
       debugShowCheckedModeBanner: false,
       theme: imagineOsTheme(),
-      home: _StudioShell(account: account, characterStore: characterStore),
+      home: _StudioShell(
+          account: account,
+          characterStore: characterStore,
+          storyGateway: storyGateway),
     );
   }
 }
 
 class _StudioShell extends StatefulWidget {
-  const _StudioShell({this.account, this.characterStore});
+  const _StudioShell(
+      {this.account, this.characterStore, required this.storyGateway});
   final ParentAccount? account;
   final CharacterStore? characterStore;
+  final IllustrationGateway storyGateway;
 
   @override
   State<_StudioShell> createState() => _StudioShellState();
@@ -82,6 +93,7 @@ class _StudioShellState extends State<_StudioShell> {
               CharacterLibraryScreen(
                   key: ValueKey(_sessionEmail),
                   store: widget.characterStore!,
+                  storyGateway: widget.storyGateway,
                   draftScope: _sessionEmail ?? 'signed-out',
                   signedIn: _sessionEmail != null)
             else

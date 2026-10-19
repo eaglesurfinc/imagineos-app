@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'drawing_document.dart';
 import 'drawing_shapes.dart';
+import 'drawing_text_layout.dart';
 
 void paintDrawing(ui.Canvas canvas, DrawingDocument document, ui.Image? base,
     {DrawingStroke? active, bool background = true}) {
@@ -39,6 +40,12 @@ void paintStroke(ui.Canvas canvas, DrawingStroke stroke) {
 
 void _paintStroke(ui.Canvas canvas, DrawingStroke stroke) {
   if (stroke.points.isEmpty) return;
+  if (stroke.tool == DrawingTool.text) {
+    final painter = drawingTextPainter(stroke);
+    painter.paint(canvas, stroke.points.first.offset);
+    painter.dispose();
+    return;
+  }
   final paint = ui.Paint()
     ..color = ui.Color(stroke.color).withValues(alpha: stroke.opacity)
     ..strokeWidth = stroke.width

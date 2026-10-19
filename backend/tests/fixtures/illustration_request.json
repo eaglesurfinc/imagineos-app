@@ -1,0 +1,14 @@
+{
+  "contract_version": 1,
+  "request_id": "10000000-0000-4000-8000-000000000001",
+  "trace_id": "10000000-0000-4000-8000-000000000002",
+  "page_id": "10000000-0000-4000-8000-000000000003",
+  "character": {
+    "character_id": "10000000-0000-4000-8000-000000000004",
+    "version_id": "10000000-0000-4000-8000-000000000005",
+    "asset_id": "10000000-0000-4000-8000-000000000006",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "scene_direction": "  Jump over the moon 🌙\nKeep the pencil lines.  ",
+  "layout": "portrait"
+}
