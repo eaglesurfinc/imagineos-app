@@ -42,14 +42,15 @@ Gate: an adult can sign in and return to their own family context; attempts to a
 
 Gate: original → save → restart → reopen works without data loss. This is the first useful character milestone.
 
-## Stage 4 — Simple in-app drawing and child flow
+## Stage 4 — Drawing studio and child flow
 
-- [ ] Finalize the minimal brush/color/undo controls within the existing drawing scope.
-- [ ] Draw and save through the same character/version pipeline as uploaded originals.
-- [ ] Add clear creation actions and usable empty, loading, error, and recovery states.
-- [ ] Verify phone/tablet layouts, enlarged text/zoom, keyboard access, and interruption recovery.
+- [x] Provide brush kits, palettes/custom colors, size/opacity, shapes, fill, eyedropper, erasing, undo/redo, and canvas zoom.
+- [x] Extract paper artwork and manually outlined artwork from busy photos onto transparency; review cleanup before applying it and preserve the source upload.
+- [x] Draw and save through the same character/version pipeline as uploaded originals.
+- [x] Add clear creation actions and usable empty, loading, error, and recovery states.
+- [x] Verify phone/tablet layouts, enlarged text/zoom, keyboard access, and interruption recovery.
 
-Gate: both in-app drawing and paper upload produce persistent, revisitable originals. No extra art-suite scope.
+Gate: both in-app drawing and photo upload produce persistent, revisitable originals; accepted extraction/editing creates a new version. Recover interrupted drawings where device storage permits, explain its limits, and retain a cloud-save path when device recovery fails. This bounded toolkit follows the founder's 2026-10-19 expansion; advanced art-suite features remain outside this gate.
 
 ## Stage 5 — Disabled gateway and deterministic story structure
 

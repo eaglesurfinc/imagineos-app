@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../drawing/drawing_studio.dart';
+import '../drawing/drawing_drafts.dart';
 
 class LibraryScreen extends StatelessWidget {
   const LibraryScreen({super.key});
@@ -16,6 +18,14 @@ class LibraryScreen extends StatelessWidget {
         const Icon(Icons.palette_outlined, size: 72),
         const SizedBox(height: 16),
         const Text('No characters yet.', textAlign: TextAlign.center),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+            onPressed: () => openDrawingStudio(context,
+                draftKey: DrawingDraftStore.shared.key('offline', 'new')),
+            icon: const Icon(Icons.draw),
+            label: const Text('Try drawing studio')),
+        const Text(
+            'Device draft only in offline preview. Configure parent access to save drawings to your library.'),
       ],
     );
   }

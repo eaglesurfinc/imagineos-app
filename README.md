@@ -4,7 +4,7 @@ Kids create. AI illustrates.
 
 This is the implementation repository: Flutter client at the root and Supabase tooling under `backend/`. Start here with any coding agent. The original product, philosophy, business, and research writings remain in the separate Founder Bible; they are not required downloads for routine build tasks.
 
-Current state: configured builds support parent accounts and an original-character library: creator nicknames, image upload, save/reopen, immutable version history, manual crop/rotate/flip with undo, and unfinished-upload recovery. Originals live in private Supabase Storage. In-app drawing, stories, AI, protected parent locks, and export remain pending. See `docs/STATUS.md` for verification and remaining live checks.
+Current implementation: parent accounts, creator nicknames, private character upload/save/reopen, immutable versions, crop/rotate/flip, confirmed whole-character or selected-version deletion, and a drawing studio with kits, colors, shapes, fill, erasing, undo/redo and local draft recovery. Extract paper artwork or manually outline a drawing in a busy photo, review it, then save a new version. Originals live in private Supabase Storage. Stories, AI, protected parent locks, and export remain pending. See `docs/STATUS.md` for verification and deployment status; local work is ahead of main.
 
 ## Build in order
 
@@ -22,7 +22,7 @@ flutter pub get
 flutter run -d edge --web-port 8766
 ```
 
-Without Supabase configuration this runs the existing shell offline. It has an empty character library and parent information. Configured builds enable parent access; upload/saving require the configured signed-in build; in-app drawing and generation remain pending.
+Without Supabase configuration this runs offline with an empty character library, parent information, and a drawing-studio preview. Cloud saving requires a configured signed-in build; generation remains pending.
 
 ## Connect Supabase development
 
@@ -33,6 +33,12 @@ flutter run -d edge --web-port 8766 --dart-define-from-file=config/supabase.loca
 ```
 
 These values are compiled into the browser application. Only a publishable key belongs here. Database passwords, service-role keys, secret API keys, and AI provider keys must stay server-side. Use the For parents tab to create a parent account, confirm its email, and sign in. See `docs/STATUS.md` for live sign-in, recovery, and signup-confirmation verification results.
+
+## Draw and extract artwork
+
+Choose a creator, then Draw a character. Pick a kit/tool and colors; use drawing to return to the naming/save form. Resume drawing studio continues edits before a save attempt. For a photo, choose the file and name, then Save original and open studio. Existing versions also have Open drawing studio. Remove paper background previews light-paper cleanup; Outline cutout keeps the area you trace in a busy photo. Remove area and the eraser refine remaining background. Review before applying, then Use drawing and Save new version. Earlier saved versions stay unchanged.
+
+Transparent canvases display a checkerboard that is absent from the PNG. Device drafts recover completed changes when browser storage permits; save to the library for persistence. Reload starts fresh undo history, cloud versions contain PNG pixels, and signing out clears device drawing drafts. Working copies use up to 1536 pixels on their longest edge; source uploads retain their original bytes. Extraction runs locally and does not automatically recognize a subject in a complex background.
 
 ## Verify
 

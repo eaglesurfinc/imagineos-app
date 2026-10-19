@@ -1,4 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+
+import '../drawing/drawing_drafts.dart';
+import '../drawing/drawing_studio.dart';
 
 import 'character_store.dart';
 import 'character_detail_screen.dart';
@@ -8,9 +14,13 @@ class CharacterLibraryScreen extends StatefulWidget {
       {super.key,
       required this.store,
       required this.signedIn,
+      this.draftScope = 'preview',
+      this.drafts,
       this.chooseFile = pickOriginal});
   final CharacterStore store;
   final bool signedIn;
+  final String draftScope;
+  final DrawingDraftStore? drafts;
   final Future<OriginalFile?> Function() chooseFile;
 
   @override
@@ -28,11 +38,17 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
   OriginalDraft? _draft;
   bool _busy = false;
   String? _message;
+  String? _studioKey;
+  late final _drafts = widget.drafts ?? DrawingDraftStore.shared;
+  late final _session = _drafts.generation;
+  String get _formKey => _drafts.key(widget.draftScope, 'form');
+  Timer? _formCheckpoint;
 
   @override
   void initState() {
     super.initState();
-    if (widget.signedIn) _reload();
+    _name.addListener(_queueForm);
+    if (widget.signedIn) _initialize();
   }
 
   @override
@@ -40,7 +56,125 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
     _nickname.dispose();
     _name.dispose();
     _scroll.dispose();
+    _formCheckpoint?.cancel();
     super.dispose();
+  }
+
+  Future<void> _initialize() async {
+    await _reload();
+    try {
+      final encoded = await _drafts.read(_formKey);
+      if (!mounted || encoded == null || _file != null || _name.text.isNotEmpty)
+        return;
+      final json = jsonDecode(encoded) as Map<String, dynamic>;
+      final child = json['child'] as String;
+      if (!(_library?.creators.any((row) => row.id == child) ?? false)) return;
+      OriginalVersion? updating;
+      final character = json['character'] as String?;
+      if (character != null) {
+        final candidates = _library!.versions.where(
+            (row) => row.characterId == character && row.state == 'ready');
+        if (candidates.isEmpty) return;
+        updating = candidates.first;
+      }
+      final file = await validateOriginal(base64Decode(json['file'] as String));
+      if (!mounted || _file != null || _name.text.isNotEmpty) return;
+      setState(() {
+        _file = file;
+        _studioKey = json['studio'] as String?;
+        _childId = child;
+        _updating = updating;
+        _name.text = json['name'] as String;
+        if (json['request'] != null)
+          _draft = OriginalDraft(
+              childId: child,
+              name: _name.text,
+              file: file,
+              characterId: character,
+              requestId: json['request'] as String);
+        _message =
+            'Drawing selection restored. Save it, or reopen the drawing studio.';
+      });
+    } catch (_) {
+      /* Missing device storage never blocks the signed-in library. */
+    }
+  }
+
+  void _queueForm() {
+    if (_studioKey == null || _file == null) return;
+    _formCheckpoint?.cancel();
+    _formCheckpoint =
+        Timer(const Duration(milliseconds: 200), () => unawaited(_cacheForm()));
+  }
+
+  Future<void> _cacheForm() async {
+    if (_studioKey == null || _file == null || _childId == null) return;
+    final value = jsonEncode({
+      'child': _childId,
+      'character': _updating?.characterId,
+      'name': _name.text,
+      'file': base64Encode(_file!.bytes),
+      'request': _draft?.requestId,
+      'studio': _studioKey
+    });
+    try {
+      await _drafts.write(_formKey, value, _session);
+    } catch (_) {
+      if (mounted)
+        setState(() => _message =
+            'Device recovery is unavailable. Keep this tab open and save your drawing.');
+    }
+  }
+
+  Future<void> _newDrawing() async {
+    if (_childId == null) return;
+    final key = _drafts.key(
+        widget.draftScope,
+        _updating == null
+            ? 'new.$_childId'
+            : 'update.${_updating!.characterId}');
+    final file =
+        await openDrawingStudio(context, draftKey: key, drafts: _drafts);
+    if (!mounted || file == null) return;
+    setState(() {
+      _file = file;
+      _studioKey = key;
+      _message = 'Drawing ready. Name it and save it to your library.';
+    });
+    await _cacheForm();
+  }
+
+  Future<void> _resumeDrawing() async {
+    final key = _studioKey;
+    if (key == null || _draft != null) return;
+    final file = await openDrawingStudio(context,
+        source: _file?.bytes, draftKey: key, drafts: _drafts);
+    if (!mounted || file == null) return;
+    setState(() {
+      _file = file;
+      _message = 'Drawing ready. Save it to your library.';
+    });
+    await _cacheForm();
+  }
+
+  Future<void> _studioForSaved(OriginalVersion version) async {
+    await _run(() async {
+      final bytes = await widget.store.read(version);
+      if (!mounted) return;
+      final key =
+          _drafts.key(widget.draftScope, 'version.${version.versionId}');
+      final file = await openDrawingStudio(context,
+          source: bytes, draftKey: key, drafts: _drafts);
+      if (!mounted || file == null) return;
+      setState(() {
+        _updating = version;
+        _childId = version.childId;
+        _name.text = version.name;
+        _file = file;
+        _studioKey = key;
+      });
+      await _cacheForm();
+    }, 'Original preserved. Use Save new version to keep the studio drawing.');
   }
 
   Future<void> _reload() async {
@@ -81,13 +215,16 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
   }
 
   void _clearForm() {
+    _formCheckpoint?.cancel();
     _file = null;
     _draft = null;
     _updating = null;
+    _studioKey = null;
     _name.clear();
+    unawaited(_drafts.drop(_formKey, _session).catchError((Object _) {}));
   }
 
-  Future<void> _save() async {
+  Future<void> _save({bool openStudio = false}) async {
     if (_childId == null ||
         _file == null ||
         _name.text.trim().isEmpty ||
@@ -101,11 +238,30 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
         name: _name.text,
         file: _file!,
         characterId: _updating?.characterId);
+    final saving = _draft!;
+    final studioKey = _studioKey;
+    var success = false;
+    await _cacheForm();
     await _run(() async {
-      await widget.store.save(_draft!);
+      await widget.store.save(saving);
+      success = true;
+      if (studioKey != null) {
+        try {
+          await _drafts.drop(studioKey, _session);
+        } catch (_) {}
+      }
       if (mounted) setState(_clearForm);
     }, 'Original saved. You can reopen it below.');
     if (mounted) await _reload();
+    if (mounted && success && openStudio) {
+      final matches = _library?.versions.where(
+          (row) => row.requestId == saving.requestId && row.state == 'ready');
+      if (matches != null && matches.isNotEmpty)
+        await _studioForSaved(matches.first);
+      else
+        setState(() => _message =
+            'Original saved. Reopen it from the library to use the drawing studio.');
+    }
   }
 
   Future<void> _open(OriginalVersion version) async {
@@ -115,8 +271,11 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
         .toList();
     final update =
         await Navigator.of(context).push<CharacterUpdate>(MaterialPageRoute(
-      builder: (_) =>
-          CharacterDetailScreen(store: widget.store, versions: history),
+      builder: (_) => CharacterDetailScreen(
+          store: widget.store,
+          versions: history,
+          draftScope: widget.draftScope,
+          drafts: _drafts),
     ));
     if (!mounted) return;
     await _reload();
@@ -129,12 +288,14 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
       _clearForm();
       _updating = update.version;
       _file = update.file;
+      _studioKey = update.studioDraftKey;
       _childId = update.version.childId;
       _name.text = update.version.name;
       _message = update.file == null
           ? 'Choose the intentionally updated drawing. Earlier versions will stay unchanged.'
           : 'Edited drawing ready. Save new version to keep it. Earlier versions stay unchanged.';
     });
+    await _cacheForm();
     if (_scroll.hasClients) {
       _scroll.animateTo(0,
           duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
@@ -171,7 +332,7 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
               style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 12),
           const Text(
-              'Upload and save your original drawing, then reopen it to crop or edit. Every saved version stays yours.'),
+              'Draw here or bring your artwork from a photo. Saved originals and earlier versions stay unchanged when you edit.'),
           const SizedBox(height: 16),
           if (library == null) ...[
             const Text('Loading your library…'),
@@ -239,10 +400,24 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
                       ? null
                       : () => _run(() async {
                             final file = await widget.chooseFile();
-                            if (file != null && mounted)
-                              setState(() => _file = file);
+                            if (file != null && mounted) {
+                              _formCheckpoint?.cancel();
+                              setState(() {
+                                _file = file;
+                                _studioKey = null;
+                              });
+                              try {
+                                await _drafts.drop(_formKey, _session);
+                              } catch (_) {}
+                            }
                           }, 'Image selection ready.'),
                   child: const Text('Choose drawing')),
+              FilledButton.icon(
+                  onPressed: _busy || _draft != null || _file != null
+                      ? null
+                      : _newDrawing,
+                  icon: const Icon(Icons.draw),
+                  label: const Text('Draw a character')),
               const Text('PNG, JPEG, or WebP · up to 5 MB and 16 megapixels.'),
               if (_file != null) ...[
                 const SizedBox(height: 8),
@@ -250,9 +425,19 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
                     height: 160,
                     fit: BoxFit.contain,
                     semanticLabel: 'Selected original drawing'),
+                if (_studioKey != null && _draft == null)
+                  OutlinedButton.icon(
+                      onPressed: _busy ? null : _resumeDrawing,
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Resume drawing studio')),
+                if (_studioKey == null && _draft == null)
+                  OutlinedButton.icon(
+                      onPressed: _busy ? null : () => _save(openStudio: true),
+                      icon: const Icon(Icons.content_cut),
+                      label: const Text('Save original and open studio')),
               ],
               FilledButton(
-                  onPressed: _busy ? null : _save,
+                  onPressed: _busy ? null : () => _save(),
                   child: Text(_busy
                       ? 'Please wait…'
                       : _draft != null
@@ -303,6 +488,28 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
                                         versionId: removal.deletingCharacter
                                             ? null
                                             : removal.versionId);
+                                    for (final version in library.versions
+                                        .where((row) =>
+                                            removal.deletingCharacter
+                                                ? row.characterId ==
+                                                    removal.characterId
+                                                : row.versionId ==
+                                                    removal.versionId)) {
+                                      try {
+                                        await _drafts.drop(
+                                            _drafts.key(widget.draftScope,
+                                                'version.${version.versionId}'),
+                                            _session);
+                                      } catch (_) {}
+                                    }
+                                    if (removal.deletingCharacter) {
+                                      try {
+                                        await _drafts.drop(
+                                            _drafts.key(widget.draftScope,
+                                                'update.${removal.characterId}'),
+                                            _session);
+                                      } catch (_) {}
+                                    }
                                     PaintingBinding.instance.imageCache.clear();
                                     PaintingBinding.instance.imageCache
                                         .clearLiveImages();

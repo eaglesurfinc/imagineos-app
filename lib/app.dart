@@ -1,4 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import 'theme.dart';
+
+import 'features/drawing/drawing_drafts.dart';
 
 import 'features/library/library_screen.dart';
 import 'features/library/character_store.dart';
@@ -17,10 +23,7 @@ class ImagineOsApp extends StatelessWidget {
     return MaterialApp(
       title: 'ImagineOS',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6554A4)),
-      ),
+      theme: imagineOsTheme(),
       home: _StudioShell(account: account, characterStore: characterStore),
     );
   }
@@ -49,6 +52,8 @@ class _StudioShellState extends State<_StudioShell> {
 
   void _onAccountChanged() {
     if (mounted && _sessionEmail != widget.account?.email) {
+      unawaited(
+          DrawingDraftStore.shared.invalidate().catchError((Object _) {}));
       Navigator.of(context).popUntil((route) => route.isFirst);
       PaintingBinding.instance.imageCache.clear();
       PaintingBinding.instance.imageCache.clearLiveImages();
@@ -77,6 +82,7 @@ class _StudioShellState extends State<_StudioShell> {
               CharacterLibraryScreen(
                   key: ValueKey(_sessionEmail),
                   store: widget.characterStore!,
+                  draftScope: _sessionEmail ?? 'signed-out',
                   signedIn: _sessionEmail != null)
             else
               const LibraryScreen(),

@@ -4,19 +4,29 @@ import 'package:flutter/material.dart';
 
 import 'character_store.dart';
 import 'character_editor.dart';
+import '../drawing/drawing_drafts.dart';
+import '../drawing/drawing_studio.dart';
 
 class CharacterUpdate {
-  const CharacterUpdate(this.version, [this.file, this.removed = false]);
+  const CharacterUpdate(this.version,
+      [this.file, this.removed = false, this.studioDraftKey]);
   final OriginalVersion version;
   final OriginalFile? file;
   final bool removed;
+  final String? studioDraftKey;
 }
 
 class CharacterDetailScreen extends StatefulWidget {
   const CharacterDetailScreen(
-      {super.key, required this.store, required this.versions});
+      {super.key,
+      required this.store,
+      required this.versions,
+      this.draftScope = 'preview',
+      this.drafts});
   final CharacterStore store;
   final List<OriginalVersion> versions;
+  final String draftScope;
+  final DrawingDraftStore? drafts;
   @override
   State<CharacterDetailScreen> createState() => _CharacterDetailScreenState();
 }
@@ -59,6 +69,23 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
     try {
       await widget.store.deleteCharacter(_version.characterId,
           versionId: whole ? null : _version.versionId);
+      final drafts = widget.drafts ?? DrawingDraftStore.shared;
+      final session = drafts.generation;
+      for (final version in widget.versions
+          .where((row) => whole || row.versionId == _version.versionId)) {
+        try {
+          await drafts.drop(
+              drafts.key(widget.draftScope, 'version.${version.versionId}'),
+              session);
+        } catch (_) {}
+      }
+      if (whole) {
+        try {
+          await drafts.drop(
+              drafts.key(widget.draftScope, 'update.${_version.characterId}'),
+              session);
+        } catch (_) {}
+      }
       if (!mounted) return;
       PaintingBinding.instance.imageCache.clear();
       PaintingBinding.instance.imageCache.clearLiveImages();
@@ -72,7 +99,7 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
     }
   }
 
-  Future<void> _edit() async {
+  Future<void> _edit({bool studio = false}) async {
     if (_editing) return;
     setState(() {
       _editing = true;
@@ -82,10 +109,16 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
     try {
       final bytes = await _image;
       if (!mounted) return;
-      final file = await Navigator.of(context).push<OriginalFile>(
-          MaterialPageRoute(builder: (_) => CharacterEditor(source: bytes)));
+      final key = (widget.drafts ?? DrawingDraftStore.shared)
+          .key(widget.draftScope, 'version.${selected.versionId}');
+      final file = studio
+          ? await openDrawingStudio(context,
+              source: bytes, draftKey: key, drafts: widget.drafts)
+          : await Navigator.of(context).push<OriginalFile>(MaterialPageRoute(
+              builder: (_) => CharacterEditor(source: bytes)));
       if (mounted && file != null)
-        Navigator.of(context).pop(CharacterUpdate(selected, file));
+        Navigator.of(context)
+            .pop(CharacterUpdate(selected, file, false, studio ? key : null));
     } catch (_) {
       if (mounted)
         setState(
@@ -158,8 +191,15 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                       .pop(CharacterUpdate(widget.versions.first)),
               child: const Text('Add new version')),
           OutlinedButton(
-              onPressed: _editing || _deleteWhole != null ? null : _edit,
+              onPressed:
+                  _editing || _deleteWhole != null ? null : () => _edit(),
               child: const Text('Crop and edit')),
+          FilledButton.icon(
+              onPressed: _editing || _deleteWhole != null
+                  ? null
+                  : () => _edit(studio: true),
+              icon: const Icon(Icons.draw),
+              label: const Text('Open drawing studio')),
           if (_deleteWhole == null) ...[
             if (widget.versions.length > 1)
               OutlinedButton.icon(

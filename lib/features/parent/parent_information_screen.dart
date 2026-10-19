@@ -18,8 +18,9 @@ class ParentInformationScreen extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         const Text(
-          'This early preview does not accept drawings, create accounts, '
-          'save work, or generate illustrations yet.',
+          'This offline preview lets you try drawing on this device. '
+          'Connect parent access to save characters to your library. '
+          'Story illustration is still being built.',
         ),
       ],
     );

@@ -15,7 +15,9 @@ This is the compact engineering contract extracted from the Founder Bible. It pr
 
 Parent-managed access → child draws in-app or uploads paper artwork → names and saves the character → closes/reopens it → directs a scene and supplies exact dialogue → AI illustrates with validated recognition → saves/reopens the story → exports a useful artifact → parent can manage privacy and deletion.
 
-Both paper upload and a simple in-app drawing flow remain in scope. Upload-first is implementation sequencing. Basic parent explanation alone is not protected parent mode.
+Both photo upload and in-app drawing remain in scope. Upload-first is implementation sequencing. Basic parent explanation alone is not protected parent mode.
+
+The founder expanded Stage 4 on 2026-10-19: provide drawing kits, useful colors and utilities, and extract artwork from both paper photos and busy backgrounds onto an empty canvas. Include brushes, adjustable size/opacity, palettes/custom colors, shapes, fill, eyedropper, erasing, undo/redo, and canvas zoom. Extraction must offer review and correction, preserve the uploaded original, and save accepted edits as explicit new versions. Paper cleanup and manual outlined cutouts satisfy the initial extraction workflow; automatic semantic background separation requires a later recorded provider decision and authorization. A full professional art suite remains outside this increment.
 
 ## Data and access
 

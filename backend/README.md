@@ -80,3 +80,9 @@ With the prepared fictional accounts, run `node backend/tests/character_deletion
 For the complete browser flow, prepare fixtures and run the Stage 3 storage test first, serve a configured release on port 8766, then run `node backend/tests/character_browser_smoke.cjs --delete`. This additionally verifies cancel, selected-version removal, reopening the remaining original after reload, and whole-character deletion against REST/Storage. Fresh object URLs avoid mistaking previously cached downloads for current stored files. Only fictional fixtures may be used.
 
 After these tests, verify zero Storage objects under the two generated family UUID prefixes, apply fixture Auth cleanup SQL, and assert zero remaining fixture accounts before deleting local fixture JSON files. The new cleanup option replaces the privileged asset reset for this path. Private deleted-request tombstones disappear with their fixture families.
+
+## Drawing and extraction browser verification
+
+Prepare fictional accounts and apply their generated create SQL as above. Serve a configured release on port 8766, then run `node backend/tests/drawing_browser_smoke.cjs` from the repository root. It does not require the Stage 3 storage fixture file. Node 24+ and isolated Edge/Chromium are required. It draws on a phone canvas, reloads an editable device draft and its exported selection, saves/reopens through real Auth/REST/Storage, and extracts a generated fictional drawing from paper and a patterned background. It checks original bytes, transparent derivative pixels, version identity, foreign-family download denial, zoom, and sign-out draft cleanup. Screenshots in the OS temporary directory contain fictional artwork only.
+
+Always use the Storage/API deletion cleanup and Auth cleanup procedure above, including after a failed browser run. This test creates no paid calls, sends no email, and must never target real family accounts.

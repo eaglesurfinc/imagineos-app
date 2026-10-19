@@ -11,15 +11,18 @@ import 'package:imagineos/features/library/character_library_screen.dart';
 import 'package:imagineos/features/library/character_store.dart';
 import 'package:imagineos/features/library/character_editor.dart';
 import 'package:imagineos/features/parent/parent_account.dart';
+import 'package:imagineos/features/drawing/drawing_drafts.dart';
+import 'support/memory_drawing_drafts.dart';
 
 final imageBytes = base64Decode(
     'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGNw09iCFTEMLQkAOOxIgSesf3AAAAAASUVORK5CYII=');
 OriginalVersion version(int number,
         {String state = 'ready',
         String name = 'Space friend',
+        String? requestId,
         bool deletingCharacter = false}) =>
     OriginalVersion.fromJson({
-      'request_id': 'request-$number',
+      'request_id': requestId ?? 'request-$number',
       'character_id': 'character-1',
       'child_profile_id': 'creator-1',
       'version_id': 'version-$number',
@@ -39,6 +42,7 @@ class FakeStore extends CharacterStore {
   bool failSaveOnce = false;
   bool failDeleteOnce = false;
   final deletionCalls = <String>[];
+  final savedBytes = <String, Uint8List>{};
   @override
   Future<void> deleteCharacter(String characterId, {String? versionId}) async {
     deletionCalls.add(versionId ?? 'all');
@@ -77,7 +81,9 @@ class FakeStore extends CharacterStore {
     }
     versions.removeWhere((row) => row.requestId == draft.requestId);
     final number = versions.isEmpty ? 1 : versions.first.number + 1;
-    versions.insert(0, version(number, name: draft.name.trim()));
+    versions.insert(0,
+        version(number, name: draft.name.trim(), requestId: draft.requestId));
+    savedBytes['version-$number'] = draft.file.bytes;
   }
 
   @override
@@ -93,7 +99,7 @@ class FakeStore extends CharacterStore {
   @override
   Future<Uint8List> read(OriginalVersion saved) async {
     reads.add(saved.versionId);
-    return imageBytes;
+    return savedBytes[saved.versionId] ?? imageBytes;
   }
 }
 
@@ -122,7 +128,9 @@ class TestAccount extends ParentAccount {
 }
 
 Future<void> showLibrary(WidgetTester tester, FakeStore store,
-    {bool signedIn = true, double textScale = 1}) async {
+    {bool signedIn = true,
+    double textScale = 1,
+    DrawingDraftStore? drafts}) async {
   await tester.pumpWidget(MaterialApp(
       builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context)
@@ -132,6 +140,7 @@ Future<void> showLibrary(WidgetTester tester, FakeStore store,
           body: CharacterLibraryScreen(
         store: store,
         signedIn: signedIn,
+        drafts: drafts ?? MemoryDrawingDrafts(),
         chooseFile: () async => OriginalFile(imageBytes, 'image/png'),
       ))));
   await tester.pumpAndSettle();
@@ -149,14 +158,65 @@ Future<void> tap(WidgetTester tester, String label,
   await tester.tap(finder);
   if (imageWork) {
     await tester.pump();
-    await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 300)));
+    for (var i = 0; i < 100; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 30)));
+      await tester.pump();
+      if (find.byType(LinearProgressIndicator).evaluate().isEmpty &&
+          find.byType(CircularProgressIndicator).evaluate().isEmpty) break;
+    }
   }
   await tester.pumpAndSettle();
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets(
+      'in-app drawing survives a failed save and reload with the same retry identity',
+      (tester) async {
+    final cache = MemoryDrawingDrafts();
+    final store = FakeStore()..failSaveOnce = true;
+    await showLibrary(tester, store, drafts: cache);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Character name'), 'Hand drawn friend');
+    await tap(tester, 'Draw a character', imageWork: true);
+    final canvas = find.byKey(const ValueKey('drawing-canvas'));
+    await tester.dragFrom(
+        tester.getCenter(canvas) - const Offset(50, 0), const Offset(100, 40));
+    await tester.pump();
+    await tap(tester, 'Use drawing', imageWork: true);
+    await tap(tester, 'Resume drawing studio', imageWork: true);
+    expect(find.textContaining('Device draft restored'), findsOneWidget);
+    await tap(tester, 'Use drawing', imageWork: true);
+    await tap(tester, 'Save character');
+    final request = store.retryKeys.single;
+    final drawn = store.drafts.single.file.bytes;
+    expect(image.decodePng(drawn)!.width, 1024);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    await showLibrary(tester, store, drafts: cache);
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)));
+    await tester.pumpAndSettle();
+    await tap(tester, 'Retry save');
+    expect(store.retryKeys, [request, request]);
+    expect(store.drafts.last.file.bytes, drawn);
+    await tap(tester, 'Hand drawn friend');
+    expect(store.savedBytes['version-1'], drawn);
+  });
+  testWidgets('photo-to-studio saves its untouched source before editing',
+      (tester) async {
+    final store = FakeStore();
+    final cache = MemoryDrawingDrafts();
+    await showLibrary(tester, store, drafts: cache);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Character name'), 'Photo friend');
+    await tap(tester, 'Choose drawing');
+    await tap(tester, 'Save original and open studio', imageWork: true);
+    expect(store.drafts.single.file.bytes, imageBytes);
+    expect(find.text('Drawing studio'), findsOneWidget);
+    expect(store.versions.single.number, 1);
+  });
   testWidgets(
       'whole character deletion requires confirmation and removes all versions',
       (tester) async {

@@ -68,9 +68,22 @@ Family/character/asset locking serializes deletion against reservations, publica
 
 Stored originals remain unchanged during edits; explicit confirmed deletion is the exception authorized here. Already downloaded or cached copies cannot be recalled by deleting server objects. The app clears its decoded-image cache and the tests use fresh URLs plus Storage/SQL checks. Migration `20261019201740_character_deletion` was applied only to the dedicated development project. The founder requested no push to main; implementation stays local on `feature/character-deletion` for review.
 
+## 2026-10-19 - Local drawing studio and reviewed extraction
+
+The founder expanded Stage 4 to drawing kits and extracting artwork from both paper and busy photographs. Use local pixel processing, with paper cleanup, a manually outlined cutout, connected-area removal, and an eraser. Preview extraction before accepting it; sensitivity changes always start from the pre-extraction drawing. Light/pale artwork can be affected by paper cleanup and needs review. This is manual-assisted extraction, not automatic semantic segmentation. No image provider, paid call, server function, or schema change is introduced.
+
+Save an upload unchanged before opening its studio. Work on an EXIF-oriented, first-frame copy capped at 1536 pixels on its longest edge; blank canvases are 1024 square. Accepted studio output is a PNG using the existing 5 MB immutable save/retry/version pipeline. Transparency is real alpha; the checkerboard is only a preview. Background color is separate from paint so erasing reveals the chosen background or transparency. Brushes, pressure-aware strokes, four palette kits, custom colors, line/shapes, fill, eyedropper, opacity, undo/redo, and pan/zoom cover this increment. No automatic redraw or dialogue generation occurs.
+
+Keep editable strokes and the current pixel base in best-effort device recovery; cloud versions are flattened PNG snapshots that can be reopened for pixel editing and additional drawing. Undo is bounded to 40 frames and 20 MB of unique base images; redo is discarded after a new action. Merging paint retains the appearance while freeing stroke capacity. Reload restores the current frame and starts fresh undo history. Completed changes checkpoint after a short debounce; an unfinished pointer stroke or an immediate tab closure can lose the latest change.
+
+Pin `shared_preferences` 2.5.6 (already present transitively) as a direct dependency for device drafts. Each JSON record is capped at 3 MB; quota failures show a recovery warning and keep the explicit cloud-save path available. This follows the package's [best-effort persistence limitation](https://pub.dev/packages/shared_preferences). Namespaced account-scoped keys separate drafts from Auth storage. Account changes fence queued writes immediately, close private screens, and clear drawing drafts; browser verification must check sign-out cleanup. Successful cloud saves and confirmed character/version deletion remove their matching device drafts. Local storage is not encrypted or a backup and does not complete Stage 8 retention/parent controls.
+
+Stage 4 work is local on `feature/stage-4-drawing-studio`, including the preceding deletion commit. The founder's no-push hold remains active. No Vercel deployment is authorized by this increment.
+
+The founder also requested a brighter child-friendly application and code cleanup. Centralize the sunny yellow, teal, coral and light-blue Material theme in `lib/theme.dart`; keep dark readable labels and a quiet canvas. Drawing models, rendering, pixel operations, tool/color controls, extraction review and device recovery have separate modules. Shared studio navigation removes duplicate route construction, and a typed operation enum replaces string-based processing branches. Keep existing offline, crop and upload-recovery paths because they still serve distinct user flows.
+
 ## Decisions needed in their stages
 
-- Stage 4: minimum drawing controls.
 - Stage 6: illustration provider, recognition/drift thresholds, retry limits, benchmark authorization.
 - Stage 7: default export format.
 - Stages 8–9: parent controls/consent details, retention/deletion, launch jurisdiction and distribution readiness.
