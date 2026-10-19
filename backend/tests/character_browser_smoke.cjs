@@ -45,7 +45,8 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
       await wheel(-10000);
       for(let i=0;i<24;i++){
         const rect=await evaluate(`(()=>{const el=${expression};if(!el)return null;const r=el.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
-        if(rect && rect.y>65 && rect.y<735)return rect;
+        const detail=await evaluate(`Array.from(document.querySelectorAll('[role="button"]')).some(el=>el.innerText==='Back')`);
+        if(rect && rect.y>65 && rect.y<(detail?830:735))return rect;
         await wheel(250);
       }
       throw Error('Control not visible: '+expression+'\n'+await body());
@@ -112,6 +113,34 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
         const actual=Buffer.from(await image.arrayBuffer());
         assert.deepEqual(actual,Buffer.from(row.version_number===1?fixture.original:fixture.revised,'base64'));
         assert.equal(createHash('sha256').update(actual).digest('hex'),row.sha256);
+      }
+      if (process.argv.includes('--delete')) {
+        await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
+        await button('Delete selected version');await waitFor('Delete version 2?');
+        await snapshot('character-delete-version-confirm');
+        await button('Cancel');
+        let check=await fetch(config.SUPABASE_URL+'/rest/v1/original_uploads?character_id=eq.'+rows[0].character_id,{headers});
+        assert.equal((await check.json()).length,2,'Cancel deleted artwork');
+        await button('Delete selected version');await button('Delete permanently');
+        for(let i=0;i<40;i++){if((await body()).includes('Deletion complete.'))break;await wheel(1500);}
+        await waitFor('Deletion complete.');
+        await send('Page.reload',{ignoreCache:true});await activateSemantics();
+        await button(characterName);await waitImage(characterName);
+        check=await fetch(config.SUPABASE_URL+'/rest/v1/original_uploads?character_id=eq.'+rows[0].character_id,{headers});
+        const remaining=await check.json();assert.equal(remaining.length,1);assert.equal(remaining[0].version_number,1);
+        const deleted=rows.find(row=>row.version_number===2);
+        let image=await fetch(config.SUPABASE_URL+'/storage/v1/object/character-originals/'+deleted.object_path+'?cacheBust='+Date.now(),{headers});
+        assert(image.status>=400,'Deleted version file remains accessible');
+        await button('Delete character');await waitFor('Delete character?');
+        await snapshot('character-delete-whole-confirm');await button('Delete permanently');
+        for(let i=0;i<40;i++){if((await body()).includes('Deletion complete.'))break;await wheel(1500);}
+        await waitFor('Deletion complete.');
+        await send('Page.reload',{ignoreCache:true});await activateSemantics();
+        check=await fetch(config.SUPABASE_URL+'/rest/v1/original_uploads?character_id=eq.'+rows[0].character_id,{headers});
+        assert.deepEqual(await check.json(),[],'Deleted character reappeared');
+        image=await fetch(config.SUPABASE_URL+'/storage/v1/object/character-originals/'+remaining[0].object_path+'?cacheBust='+Date.now(),{headers});
+        assert(image.status>=400,'Deleted character file remains accessible');
+        console.log('PASS: browser cancellation, selected-version removal, reopening older version after reload, whole-character removal, and independent REST/Storage cleanup checks.');
       }
     } finally {await fetch(config.SUPABASE_URL+'/auth/v1/logout?scope=local',{method:'POST',headers});}
     assert.equal(errors.length,0,'Browser runtime exceptions occurred');

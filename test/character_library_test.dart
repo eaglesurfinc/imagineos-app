@@ -15,7 +15,9 @@ import 'package:imagineos/features/parent/parent_account.dart';
 final imageBytes = base64Decode(
     'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGNw09iCFTEMLQkAOOxIgSesf3AAAAAASUVORK5CYII=');
 OriginalVersion version(int number,
-        {String state = 'ready', String name = 'Space friend'}) =>
+        {String state = 'ready',
+        String name = 'Space friend',
+        bool deletingCharacter = false}) =>
     OriginalVersion.fromJson({
       'request_id': 'request-$number',
       'character_id': 'character-1',
@@ -26,6 +28,7 @@ OriginalVersion version(int number,
       'object_path': 'family/file-$number',
       'sha256': OriginalFile(imageBytes, 'image/png').checksum,
       'state': state,
+      'deleting_character': deletingCharacter,
     });
 
 class FakeStore extends CharacterStore {
@@ -34,6 +37,30 @@ class FakeStore extends CharacterStore {
   final reads = <String>[];
   final drafts = <OriginalDraft>[];
   bool failSaveOnce = false;
+  bool failDeleteOnce = false;
+  final deletionCalls = <String>[];
+  @override
+  Future<void> deleteCharacter(String characterId, {String? versionId}) async {
+    deletionCalls.add(versionId ?? 'all');
+    if (failDeleteOnce) {
+      failDeleteOnce = false;
+      for (var i = 0; i < versions.length; i++) {
+        final row = versions[i];
+        if (row.characterId == characterId &&
+            (versionId == null || row.versionId == versionId)) {
+          versions[i] = version(row.number,
+              state: 'deleting',
+              name: row.name,
+              deletingCharacter: versionId == null);
+        }
+      }
+      throw Exception('interrupted storage cleanup');
+    }
+    versions.removeWhere((row) =>
+        row.characterId == characterId &&
+        (versionId == null || row.versionId == versionId));
+  }
+
   @override
   Future<CharacterLibrary> load() async => CharacterLibrary(
       const [CreatorProfile('creator-1', 'Fictional creator')],
@@ -95,14 +122,18 @@ class TestAccount extends ParentAccount {
 }
 
 Future<void> showLibrary(WidgetTester tester, FakeStore store,
-    {bool signedIn = true}) async {
+    {bool signedIn = true, double textScale = 1}) async {
   await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!),
       home: Scaffold(
           body: CharacterLibraryScreen(
-    store: store,
-    signedIn: signedIn,
-    chooseFile: () async => OriginalFile(imageBytes, 'image/png'),
-  ))));
+        store: store,
+        signedIn: signedIn,
+        chooseFile: () async => OriginalFile(imageBytes, 'image/png'),
+      ))));
   await tester.pumpAndSettle();
 }
 
@@ -126,6 +157,63 @@ Future<void> tap(WidgetTester tester, String label,
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets(
+      'whole character deletion requires confirmation and removes all versions',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store = FakeStore()..versions.addAll([version(2), version(1)]);
+    await showLibrary(tester, store, textScale: 2);
+    await tap(tester, 'Space friend');
+    await tap(tester, 'Delete character');
+    await tap(tester, 'Cancel');
+    expect(store.deletionCalls, isEmpty);
+    expect(store.versions.length, 2);
+    await tap(tester, 'Delete character');
+    await tap(tester, 'Delete permanently');
+    expect(store.deletionCalls, ['all']);
+    expect(store.versions, isEmpty);
+    await tap(tester, 'Refresh library');
+    expect(find.text('No characters yet.'), findsOneWidget);
+  });
+  testWidgets('deleting a selected older version keeps the newer version',
+      (tester) async {
+    final store = FakeStore()
+      ..versions.addAll([version(2, name: 'Updated friend'), version(1)]);
+    await showLibrary(tester, store);
+    await tap(tester, 'Updated friend');
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Version 1: Space friend').last);
+    await tester.pumpAndSettle();
+    await tap(tester, 'Delete selected version');
+    expect(find.text('Delete version 1?'), findsOneWidget);
+    await tap(tester, 'Delete permanently');
+    expect(store.deletionCalls, ['version-1']);
+    expect(store.versions.single.versionId, 'version-2');
+    await tap(tester, 'Updated friend');
+    expect(find.text('Delete selected version'), findsNothing);
+    expect(find.textContaining('only saved version'), findsOneWidget);
+  });
+  testWidgets(
+      'interrupted deletion is visible and can finish after returning to library',
+      (tester) async {
+    final store = FakeStore()
+      ..versions.add(version(1))
+      ..failDeleteOnce = true;
+    await showLibrary(tester, store);
+    await tap(tester, 'Space friend');
+    await tap(tester, 'Delete character');
+    await tap(tester, 'Delete permanently');
+    expect(find.textContaining('Deletion did not finish'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tap(tester, 'Finish deletion');
+    expect(store.deletionCalls, ['all', 'all']);
+    expect(store.versions, isEmpty);
+  });
   test(
       'binary download missing-object wrapper is distinguished from denied access',
       () {

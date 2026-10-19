@@ -58,6 +58,16 @@ Crop controls use labeled percentage ranges with a visible crop overlay. Explici
 
 Extracted character details and image transformations into separate modules, removed the embedded detail implementation and unnecessary imports/image copying, and reused the existing immutable upload/retry pipeline. No dependencies, database schema, access policies, or paid services changed. A current file selection must be saved or cleared before opening another character, preventing accidental draft replacement. This bounded editing increment does not complete Stage 4's blank-canvas brush/color drawing gate.
 
+## 2026-10-19 - Explicit character and version deletion
+
+The founder requested whole-character deletion and removal of selected versions. Both require a confirmation identifying the scope and permanent removal. Deleting a version keeps the character and other versions; deleting the last saved version must use Delete character so the user explicitly chooses to remove the identity. Whole deletion also covers pending/cancelled upload reservations. This is authenticated family access with confirmation, not the later protected parent lock or full account/retention workflow.
+
+Deletion uses begin/finish invoker RPCs backed by private ownership-checking functions. The server marks the selected assets as deleting before returning paths. The client removes files through the Storage API in batches of 100; SQL finalization refuses to remove references while any selected Storage object remains. Interrupted operations stay visible and can be resumed after a new session. Foreign/missing IDs produce identical no-ops without exposing foreign paths. Ready assets remain immutable outside an explicitly begun deletion. See [Supabase object deletion](https://supabase.com/docs/guides/storage/management/delete-objects).
+
+Family/character/asset locking serializes deletion against reservations, publication, and Storage writes. Version numbers use an atomic character counter and are never reused after deleting a high version. Private retry tombstones retain only a request UUID, family UUID, and time; they prevent stale initial-upload retries from restoring removed artwork and cascade when the family is deleted. They retain no names, images, or checksums. Retention for these minimal records belongs to Stage 8. New future story/page references must be checked before beginning deletion when those tables are introduced; this increment has no saved stories/pages.
+
+Stored originals remain unchanged during edits; explicit confirmed deletion is the exception authorized here. Already downloaded or cached copies cannot be recalled by deleting server objects. The app clears its decoded-image cache and the tests use fresh URLs plus Storage/SQL checks. Migration `20261019201740_character_deletion` was applied only to the dedicated development project. The founder requested no push to main; implementation stays local on `feature/character-deletion` for review.
+
 ## Decisions needed in their stages
 
 - Stage 4: minimum drawing controls.

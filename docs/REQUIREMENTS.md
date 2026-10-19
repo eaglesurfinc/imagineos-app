@@ -24,6 +24,7 @@ Both paper upload and a simple in-app drawing flow remain in scope. Upload-first
 - Use private Storage, server-enforced family ownership, RLS, and tests for unauthorized and cross-family access, including linked resource reassignment.
 - Keep service-role/secret/provider credentials server-side. Publishable client configuration is public, even if supplied through build variables.
 - Test failed/interrupted saves, upload cleanup, reload, version preservation, token/session handling, and deletion/retention before pilot use.
+- Allow confirmed deletion of a whole character or one selected version within the owning family. Remove selected files and records, retain other versions, and offer retry after interruption. Use whole-character deletion for the last saved version. Original preservation during edits does not prevent explicit user-requested deletion.
 
 ## AI and operating limits
 

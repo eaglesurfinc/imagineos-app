@@ -120,7 +120,9 @@ class OriginalVersion {
         name = json['name'] as String,
         objectPath = json['object_path'] as String,
         checksum = json['sha256'] as String,
+        deletingCharacter = json['deleting_character'] as bool? ?? false,
         state = json['state'] as String;
+  final bool deletingCharacter;
   final String requestId,
       characterId,
       childId,
@@ -157,12 +159,28 @@ abstract class CharacterStore {
   Future<void> save(OriginalDraft draft);
   Future<void> finish(OriginalVersion version);
   Future<void> discard(OriginalVersion version);
+  Future<void> deleteCharacter(String characterId, {String? versionId});
   Future<Uint8List> read(OriginalVersion version);
 }
 
 class SupabaseCharacterStore implements CharacterStore {
   SupabaseCharacterStore(this.client);
   final SupabaseClient client;
+
+  @override
+  Future<void> deleteCharacter(String characterId, {String? versionId}) async {
+    final params = {'p_character_id': characterId, 'p_version_id': versionId};
+    final paths = List<String>.from(
+        await client.rpc('begin_character_deletion', params: params) as List);
+    // Storage must remove the actual files before SQL references can disappear.
+    for (var start = 0; start < paths.length; start += 100) {
+      final end = (start + 100).clamp(0, paths.length);
+      await client.storage
+          .from(originalBucket)
+          .remove(paths.sublist(start, end));
+    }
+    await client.rpc('finish_character_deletion', params: params);
+  }
 
   @override
   Future<CharacterLibrary> load() async {

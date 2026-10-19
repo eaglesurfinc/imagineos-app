@@ -60,7 +60,8 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
     }
   }
 
-  Future<void> _run(Future<void> Function() action, String success) async {
+  Future<void> _run(Future<void> Function() action, String success,
+      {String? failure}) async {
     setState(() {
       _busy = true;
       _message = null;
@@ -72,7 +73,7 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
       if (mounted) setState(() => _message = error.message);
     } catch (_) {
       if (mounted)
-        setState(() => _message =
+        setState(() => _message = failure ??
             'Could not complete the save. Your original selection is kept. Retry, or check unfinished uploads.');
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -117,7 +118,13 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
       builder: (_) =>
           CharacterDetailScreen(store: widget.store, versions: history),
     ));
+    if (!mounted) return;
+    await _reload();
     if (!mounted || update == null) return;
+    if (update.removed) {
+      setState(() => _message = 'Deletion complete.');
+      return;
+    }
     setState(() {
       _clearForm();
       _updating = update.version;
@@ -145,7 +152,13 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
     }
     final library = _library;
     final latest = <String, OriginalVersion>{};
+    final deletions = <String, OriginalVersion>{};
     for (final version in library?.versions ?? <OriginalVersion>[]) {
+      if (version.state == 'deleting') {
+        deletions.putIfAbsent(
+            version.deletingCharacter ? version.characterId : version.versionId,
+            () => version);
+      }
       if (version.state == 'ready' && version.childId == _childId) {
         latest.putIfAbsent(version.characterId, () => version);
       }
@@ -168,11 +181,14 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
           ] else ...[
             if (library.creators.isNotEmpty)
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: _childId,
                 decoration: const InputDecoration(labelText: 'Creator'),
                 items: library.creators
                     .map((creator) => DropdownMenuItem(
-                        value: creator.id, child: Text(creator.nickname)))
+                        value: creator.id,
+                        child: Text(creator.nickname,
+                            maxLines: 1, overflow: TextOverflow.ellipsis)))
                     .toList(),
                 onChanged: _busy || _draft != null || _updating != null
                     ? null
@@ -270,6 +286,31 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
             TextButton(
                 onPressed: _busy ? null : _reload,
                 child: const Text('Refresh library')),
+            for (final removal in deletions.values)
+              Card(
+                  child: ListTile(
+                      title: Text(removal.deletingCharacter
+                          ? 'Deleting character: ${removal.name}'
+                          : 'Deleting version ${removal.number}: ${removal.name}'),
+                      subtitle: const Text(
+                          'Deletion is unfinished. Finish removing the selected files and records.'),
+                      trailing: TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _run(() async {
+                                    await widget.store.deleteCharacter(
+                                        removal.characterId,
+                                        versionId: removal.deletingCharacter
+                                            ? null
+                                            : removal.versionId);
+                                    PaintingBinding.instance.imageCache.clear();
+                                    PaintingBinding.instance.imageCache
+                                        .clearLiveImages();
+                                    await _reload();
+                                  }, 'Deletion complete.',
+                                      failure:
+                                          'Deletion did not finish. Retry Finish deletion to continue cleanup.'),
+                          child: const Text('Finish deletion')))),
             for (final pending
                 in library.versions.where((row) => row.state == 'pending'))
               Card(

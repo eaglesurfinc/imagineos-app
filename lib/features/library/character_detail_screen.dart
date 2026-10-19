@@ -6,9 +6,10 @@ import 'character_store.dart';
 import 'character_editor.dart';
 
 class CharacterUpdate {
-  const CharacterUpdate(this.version, [this.file]);
+  const CharacterUpdate(this.version, [this.file, this.removed = false]);
   final OriginalVersion version;
   final OriginalFile? file;
+  final bool removed;
 }
 
 class CharacterDetailScreen extends StatefulWidget {
@@ -24,7 +25,52 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
   late OriginalVersion _version;
   late Future<Uint8List> _image;
   bool _editing = false;
+  bool? _deleteWhole;
   String? _error;
+
+  Future<void> _remove(bool whole) async {
+    if (_deleteWhole == null) {
+      final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+                scrollable: true,
+                title: Text(whole
+                    ? 'Delete character?'
+                    : 'Delete version ${_version.number}?'),
+                content: Text(whole
+                    ? 'Permanently delete "${_version.name}" and all its versions, original drawings, edits, and unfinished uploads? This cannot be undone.'
+                    : 'Permanently delete version ${_version.number} of "${_version.name}" and its drawing? Other versions will stay. This cannot be undone.'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(dialogContext, false),
+                      child: const Text('Cancel')),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(dialogContext, true),
+                      child: const Text('Delete permanently')),
+                ],
+              ));
+      if (!mounted || confirmed != true) return;
+    }
+    setState(() {
+      _editing = true;
+      _deleteWhole = whole;
+      _error = null;
+    });
+    try {
+      await widget.store.deleteCharacter(_version.characterId,
+          versionId: whole ? null : _version.versionId);
+      if (!mounted) return;
+      PaintingBinding.instance.imageCache.clear();
+      PaintingBinding.instance.imageCache.clearLiveImages();
+      Navigator.of(context).pop(CharacterUpdate(_version, null, true));
+    } catch (_) {
+      if (mounted)
+        setState(() => _error =
+            'Deletion did not finish. Retry, or return to the library to check unfinished deletions. If this is the last saved version, use Delete character instead.');
+    } finally {
+      if (mounted) setState(() => _editing = false);
+    }
+  }
 
   Future<void> _edit() async {
     if (_editing) return;
@@ -65,15 +111,16 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
         appBar: AppBar(title: Text(_version.name)),
         body: ListView(padding: const EdgeInsets.all(24), children: [
           DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: _version.versionId,
               decoration: const InputDecoration(labelText: 'Saved version'),
               items: widget.versions
                   .map((version) => DropdownMenuItem(
                       value: version.versionId,
-                      child:
-                          Text('Version ${version.number}: ${version.name}')))
+                      child: Text('Version ${version.number}: ${version.name}',
+                          maxLines: 1, overflow: TextOverflow.ellipsis)))
                   .toList(),
-              onChanged: _editing
+              onChanged: _editing || _deleteWhole != null
                   ? null
                   : (id) {
                       if (id != null)
@@ -105,14 +152,31 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
           const Text(
               'This saved original stays unchanged. Intentional updates create a new version.'),
           OutlinedButton(
-              onPressed: _editing
+              onPressed: _editing || _deleteWhole != null
                   ? null
                   : () => Navigator.of(context)
                       .pop(CharacterUpdate(widget.versions.first)),
               child: const Text('Add new version')),
           OutlinedButton(
-              onPressed: _editing ? null : _edit,
+              onPressed: _editing || _deleteWhole != null ? null : _edit,
               child: const Text('Crop and edit')),
+          if (_deleteWhole == null) ...[
+            if (widget.versions.length > 1)
+              OutlinedButton.icon(
+                  onPressed: _editing ? null : () => _remove(false),
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Delete selected version'))
+            else
+              const Text(
+                  'This is the only saved version. Use Delete character to remove it.'),
+            TextButton.icon(
+                onPressed: _editing ? null : () => _remove(true),
+                icon: const Icon(Icons.delete_forever),
+                label: const Text('Delete character')),
+          ] else
+            FilledButton(
+                onPressed: _editing ? null : () => _remove(_deleteWhole!),
+                child: Text(_editing ? 'Deleting…' : 'Retry deletion')),
           if (_error != null) Semantics(liveRegion: true, child: Text(_error!)),
         ]),
       );

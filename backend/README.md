@@ -53,11 +53,11 @@ Hosted development does not require Docker. Local stack replay does; installatio
 
 ## Character originals and private Storage
 
-`characters` holds identity and a child/family relationship; `character_versions` holds append-only names and version numbers; `original_assets` holds the private path, MIME type, size, checksum and pending/ready/cancelled state. Read through `original_uploads`, a SECURITY INVOKER view. All underlying tables use family RLS and grant only SELECT to clients.
+`characters` holds identity and a child/family relationship; `character_versions` holds append-only names and version numbers; `original_assets` holds the private path, MIME type, size, checksum and pending/ready/cancelled/deleting state. Read through `original_uploads`, a SECURITY INVOKER view. All underlying tables use family RLS and grant only SELECT to clients.
 
 Use `reserve_original`, `finish_original`, and `cancel_original` RPCs for state transitions. Their invoker wrappers delegate to explicitly granted functions in the unexposed `imagineos_upload_private` schema, which check authenticated database ownership and qualify all names. The Auth provisioning schema remains inaccessible to clients. Never bypass these transitions or grant direct table mutation to fix a client error.
 
-The private bucket `character-originals` caps each object at 5 MB and permits only PNG/JPEG/WebP. Paths are server-assigned family/asset UUIDs. Storage policies deny unreserved uploads, all overwrites/upserts, and deletion of ready files. Only pending files can be discarded. Do not delete Storage metadata using SQL: remove files through Storage API first.
+The private bucket `character-originals` caps each object at 5 MB and permits only PNG/JPEG/WebP. Paths are server-assigned family/asset UUIDs. Storage policies deny unreserved uploads, all overwrites/upserts, and direct deletion of ready files. Pending files can be discarded; explicit character/version deletion first marks selected files as deleting. Do not delete Storage metadata using SQL: remove files through Storage API first.
 
 To verify Stage 3, prepare the two fictional accounts as above, apply their generated create SQL, then run from repository root:
 
@@ -69,4 +69,14 @@ python -m http.server 8766 --bind 127.0.0.1 --directory build/web
 
 In another terminal, run `node backend/tests/character_browser_smoke.cjs`. It uses an isolated headless Edge profile; set `IMAGINEOS_BROWSER_PATH` for another Chromium executable. Node 24+ is required. It tests the real file picker, save, reopen, intentional version update, and reload, and independently checks both byte streams through REST/Storage. Temporary screenshots contain fictional data only. These checks do not send email.
 
-Mandatory cleanup, including after failed tests: through an authorized SQL connection apply `reset_originals` from the ignored fixture SQL file, which targets only the two generated fictional families. This privileged test-only reset allows their ready objects to be removed; it is never a product operation. Run `node backend/tests/character_storage_smoke.mjs --cleanup` to remove files via Storage and cancel remaining reservations. Finally apply the fixture `cleanup` SQL to delete their Auth users and cascaded records. Assert zero fixture accounts/objects remain, then remove the ignored fixture JSON files. Never apply that reset to real users, real artwork, or another project.
+Mandatory cleanup, including after failed tests: run `node backend/tests/character_deletion_smoke.mjs --cleanup` to remove all artwork for the two fictional families through Storage and then finalize their deletion. Verify zero Storage objects under those family UUID prefixes, then apply fixture Auth `cleanup` SQL and assert zero remaining fixture accounts before removing ignored fixture JSON files. No privileged asset-state reset is required for this workflow. Never delete Storage object metadata through SQL.
+
+## Explicit character/version deletion
+
+`begin_character_deletion` and `finish_character_deletion` take `p_character_id` and optional `p_version_id` (null means the entire character). The begin call resolves ownership, marks selected assets, and returns all selected paths. Remove those through Storage, then finalize; never delete `storage.objects` rows through SQL. Retry both calls after interruption. Direct client writes to character/version/asset tables remain denied. The last saved version requires whole-character deletion.
+
+With the prepared fictional accounts, run `node backend/tests/character_deletion_smoke.mjs`. It tests version removal, whole deletion including unfinished uploads, two-family isolation, interrupted cleanup/new sessions, direct-delete denial, non-reused version numbers, last-version protection, and stale-request resurrection prevention. Its finally block removes all remaining artwork for these fixture families through the new deletion flow. For cleanup without recreating tests use `node backend/tests/character_deletion_smoke.mjs --cleanup`.
+
+For the complete browser flow, prepare fixtures and run the Stage 3 storage test first, serve a configured release on port 8766, then run `node backend/tests/character_browser_smoke.cjs --delete`. This additionally verifies cancel, selected-version removal, reopening the remaining original after reload, and whole-character deletion against REST/Storage. Fresh object URLs avoid mistaking previously cached downloads for current stored files. Only fictional fixtures may be used.
+
+After these tests, verify zero Storage objects under the two generated family UUID prefixes, apply fixture Auth cleanup SQL, and assert zero remaining fixture accounts before deleting local fixture JSON files. The new cleanup option replaces the privileged asset reset for this path. Private deleted-request tombstones disappear with their fixture families.
