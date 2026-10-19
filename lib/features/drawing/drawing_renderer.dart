@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'drawing_document.dart';
+import 'drawing_shapes.dart';
 
 void paintDrawing(ui.Canvas canvas, DrawingDocument document, ui.Image? base,
     {DrawingStroke? active, bool background = true}) {
@@ -29,6 +30,14 @@ void paintDrawing(ui.Canvas canvas, DrawingDocument document, ui.Image? base,
 }
 
 void paintStroke(ui.Canvas canvas, DrawingStroke stroke) {
+  canvas.save();
+  if (stroke.selection.length >= 3)
+    canvas.clipPath(drawingPolygon(stroke.selection));
+  _paintStroke(canvas, stroke);
+  canvas.restore();
+}
+
+void _paintStroke(ui.Canvas canvas, DrawingStroke stroke) {
   if (stroke.points.isEmpty) return;
   final paint = ui.Paint()
     ..color = ui.Color(stroke.color).withValues(alpha: stroke.opacity)
@@ -46,24 +55,18 @@ void paintStroke(ui.Canvas canvas, DrawingStroke stroke) {
     paint.blendMode = ui.BlendMode.multiply;
   }
   final first = stroke.points.first.offset, last = stroke.points.last.offset;
-  if (stroke.tool == DrawingTool.line) {
-    canvas.drawLine(first, last, paint);
-    return;
-  }
-  if (stroke.tool == DrawingTool.rectangle ||
-      stroke.tool == DrawingTool.ellipse) {
-    paint.style =
-        stroke.filled ? ui.PaintingStyle.fill : ui.PaintingStyle.stroke;
-    final bounds = ui.Rect.fromPoints(first, last);
-    if (stroke.tool == DrawingTool.rectangle)
-      canvas.drawRect(bounds, paint);
-    else
-      canvas.drawOval(bounds, paint);
+  if (stroke.tool.isShape) {
+    paint.style = stroke.filled && stroke.tool != DrawingTool.line
+        ? ui.PaintingStyle.fill
+        : ui.PaintingStyle.stroke;
+    canvas.drawPath(drawingShape(stroke.tool, first, last), paint);
     return;
   }
   if (stroke.points.length == 1) {
     canvas.drawCircle(
-        first, stroke.width / 2, paint..style = ui.PaintingStyle.fill);
+        first,
+        stroke.width * (.35 + .65 * stroke.points.first.pressure) / 2,
+        paint..style = ui.PaintingStyle.fill);
     return;
   }
   if (stroke.points.every((p) => p.pressure == 1)) {

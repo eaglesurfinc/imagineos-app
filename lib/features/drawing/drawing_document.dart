@@ -16,7 +16,34 @@ enum DrawingTool {
   ellipse,
   cutout,
   backgroundEraser,
-  pan
+  pan,
+  select,
+  lasso,
+  square,
+  circle,
+  triangle,
+  diamond,
+  pentagon,
+  hexagon,
+  star,
+  heart,
+  arrow;
+
+  bool get isShape => const {
+        line,
+        rectangle,
+        ellipse,
+        square,
+        circle,
+        triangle,
+        diamond,
+        pentagon,
+        hexagon,
+        star,
+        heart,
+        arrow
+      }.contains(this);
+  bool get isSelection => this == select || this == lasso;
 }
 
 class DrawingPoint {
@@ -37,19 +64,23 @@ class DrawingStroke {
       required this.color,
       required this.width,
       required this.opacity,
-      this.filled = false});
+      this.filled = false,
+      this.selection = const []});
   final DrawingTool tool;
   final List<DrawingPoint> points;
   final int color;
   final double width, opacity;
   final bool filled;
+  final List<DrawingPoint> selection;
   Map<String, dynamic> toJson() => {
         'tool': tool.name,
         'points': points.map((p) => p.toJson()).toList(),
         'color': color,
         'width': width,
         'opacity': opacity,
-        'filled': filled
+        'filled': filled,
+        if (selection.isNotEmpty)
+          'selection': selection.map((p) => p.toJson()).toList()
       };
   factory DrawingStroke.fromJson(Map<String, dynamic> json) => DrawingStroke(
       tool: DrawingTool.values.byName(json['tool'] as String),
@@ -59,7 +90,10 @@ class DrawingStroke {
       color: json['color'] as int,
       width: (json['width'] as num).toDouble(),
       opacity: (json['opacity'] as num).toDouble(),
-      filled: json['filled'] as bool);
+      filled: json['filled'] as bool,
+      selection: ((json['selection'] as List?) ?? const [])
+          .map((p) => DrawingPoint.fromJson(p as List))
+          .toList());
 }
 
 class DrawingFrame {
@@ -139,13 +173,14 @@ class DrawingDocument {
     if (frame.strokes.length > 500 ||
         frame.strokes.any((s) =>
             s.points.length > 20000 ||
+            s.selection.length > 6000 ||
             !s.width.isFinite ||
             s.width < 1 ||
             s.width > 100 ||
             !s.opacity.isFinite ||
             s.opacity < 0 ||
             s.opacity > 1 ||
-            s.points.any((p) =>
+            [...s.points, ...s.selection].any((p) =>
                 !p.x.isFinite ||
                 !p.y.isFinite ||
                 !p.pressure.isFinite ||

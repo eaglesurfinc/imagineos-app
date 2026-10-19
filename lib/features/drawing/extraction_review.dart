@@ -1,90 +1,126 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'drawing_document.dart';
-import 'drawing_pixels.dart';
+import 'package:flutter/material.dart';
+
 import 'drawing_canvas.dart';
+import 'drawing_pixels.dart';
 
 Future<RasterResult?> reviewDrawingExtraction(
-    BuildContext context,
-    Uint8List bytes,
-    RasterResult initial,
-    DrawingPixelOperation operation,
-    DrawingPoint point,
-    List<List<double>> polygon,
-    double initialTolerance) async {
-  var result = initial, tolerance = initialTolerance;
-  var working = false;
-  String? error;
-  return showDialog<RasterResult>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-          builder: (context, update) => AlertDialog(
-                scrollable: true,
-                title: const Text('Review extracted drawing'),
-                content: SizedBox(
-                    width: 520,
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      const Text(
-                          'Check pale colors and fine lines before accepting. The source stays unchanged. Undo restores the previous artwork.'),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                          height: 240,
-                          child: CustomPaint(
-                              painter: const CheckerPainter(),
-                              child: Center(
-                                  child: Image.memory(result.bytes,
-                                      fit: BoxFit.contain,
-                                      semanticLabel: 'Extraction preview')))),
-                      if (operation != DrawingPixelOperation.cutout) ...[
-                        Text('Cleanup tolerance: ${tolerance.round()}'),
-                        Slider(
-                            value: tolerance,
-                            min: 0,
-                            max: 150,
-                            divisions: 150,
-                            onChanged: working
-                                ? null
-                                : (value) => update(() => tolerance = value),
-                            onChangeEnd: (value) async {
-                              update(() {
-                                working = true;
-                                error = null;
-                              });
-                              try {
-                                final next = await compute(
-                                    processDrawingPixels,
-                                    RasterRequest(bytes,
-                                        operation: operation,
-                                        x: point.x.floor(),
-                                        y: point.y.floor(),
-                                        tolerance: value,
-                                        polygon: polygon));
-                                if (dialogContext.mounted)
-                                  update(() => result = next);
-                              } catch (_) {
-                                if (dialogContext.mounted)
-                                  update(() => error =
-                                      'Could not update the preview. Try a different tolerance.');
-                              } finally {
-                                if (dialogContext.mounted)
-                                  update(() => working = false);
-                              }
-                            }),
-                      ],
-                      if (working) const LinearProgressIndicator(),
-                      if (error != null) Text(error!),
-                    ])),
-                actions: [
-                  TextButton(
-                      onPressed:
-                          working ? null : () => Navigator.pop(dialogContext),
-                      child: const Text('Keep current drawing')),
-                  FilledButton(
-                      onPressed: working
-                          ? null
-                          : () => Navigator.pop(dialogContext, result),
-                      child: const Text('Use extraction'))
-                ],
-              )));
+        BuildContext context, RasterRequest request, RasterResult initial) =>
+    showDialog<RasterResult>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _ExtractionReview(request: request, initial: initial));
+
+class _ExtractionReview extends StatefulWidget {
+  const _ExtractionReview({required this.request, required this.initial});
+  final RasterRequest request;
+  final RasterResult initial;
+  @override
+  State<_ExtractionReview> createState() => _ExtractionReviewState();
+}
+
+class _ExtractionReviewState extends State<_ExtractionReview> {
+  late RasterResult _result = widget.initial;
+  late double _tolerance = widget.request.tolerance.clamp(0, 100);
+  late bool _edges = widget.request.protectEdges,
+      _gaps = widget.request.closeGaps;
+  bool _working = false, _original = false;
+  String? _error;
+  Future<void> _update() async {
+    setState(() {
+      _working = true;
+      _error = null;
+    });
+    try {
+      final next = await compute(processDrawingPixels,
+          widget.request.withTolerance(_tolerance, edges: _edges, gaps: _gaps));
+      if (mounted) setState(() => _result = next);
+    } catch (_) {
+      if (mounted)
+        setState(() => _error =
+            'Could not update this preview. Adjust the settings or keep your current drawing.');
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final operation = widget.request.operation;
+    return AlertDialog(
+        scrollable: true,
+        title: const Text('Review extracted drawing'),
+        content: SizedBox(
+            width: 520,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(operation == DrawingPixelOperation.paper
+                  ? 'Cleanup estimates the empty page and protects faint marks. Compare the original before accepting. If paper and artwork look identical, keep the original and erase manually.'
+                  : 'Check the boundary before accepting. Lower tolerance removes a narrower color range. A selection limits cleanup to its outline.'),
+              const SizedBox(height: 12),
+              SizedBox(
+                  height: 240,
+                  child: CustomPaint(
+                      painter: const CheckerPainter(),
+                      child: Center(
+                          child: Image.memory(
+                              _original ? widget.request.bytes : _result.bytes,
+                              gaplessPlayback: true,
+                              fit: BoxFit.contain,
+                              semanticLabel: _original
+                                  ? 'Original before extraction'
+                                  : 'Extraction preview')))),
+              SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Compare original'),
+                  value: _original,
+                  onChanged: (value) => setState(() => _original = value)),
+              if (operation != DrawingPixelOperation.cutout) ...[
+                Text(operation == DrawingPixelOperation.paper
+                    ? 'Paper cleanup strength: ${_tolerance.round()}'
+                    : 'Color tolerance: ${_tolerance.round()}'),
+                Slider(
+                    value: _tolerance,
+                    max: 100,
+                    divisions: 100,
+                    onChanged: _working
+                        ? null
+                        : (value) => setState(() => _tolerance = value),
+                    onChangeEnd: _working ? null : (_) => _update()),
+              ],
+              if (operation == DrawingPixelOperation.remove) ...[
+                SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Protect drawing edges'),
+                    value: _edges,
+                    onChanged: _working
+                        ? null
+                        : (value) {
+                            _edges = value;
+                            _update();
+                          }),
+                SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Bridge tiny gaps'),
+                    value: _gaps,
+                    onChanged: _working || !_edges
+                        ? null
+                        : (value) {
+                            _gaps = value;
+                            _update();
+                          }),
+              ],
+              if (_working) const LinearProgressIndicator(),
+              if (_error != null) Text(_error!),
+            ])),
+        actions: [
+          TextButton(
+              onPressed: _working ? null : () => Navigator.pop(context),
+              child: const Text('Keep current drawing')),
+          FilledButton(
+              onPressed: _working || _error != null
+                  ? null
+                  : () => Navigator.pop(context, _result),
+              child: const Text('Use extraction')),
+        ]);
+  }
 }

@@ -52,6 +52,16 @@ Gate: original → save → restart → reopen works without data loss. This is 
 
 Gate: both in-app drawing and photo upload produce persistent, revisitable originals; accepted extraction/editing creates a new version. Recover interrupted drawings where device storage permits, explain its limits, and retain a cloud-save path when device recovery fails. This bounded toolkit follows the founder's 2026-10-19 expansion; advanced art-suite features remain outside this gate.
 
+### Stage 4 follow-up - Drawing precision and device use
+
+- [x] Protect faint lines during paper cleanup, compare before/after, and test uneven page lighting.
+- [x] Add pointer/lasso selections that limit paint, fill, cleanup and deletion; keep selected stroke boundaries after draft recovery.
+- [x] Improve connected-area removal with drawing-edge protection, tiny-gap bridging and review controls.
+- [x] Add more outlined/filled shapes and standard touch/pen input: pressure, eraser tip, pen-only mode, and two-finger navigation without accidental paint.
+- [x] Export a transparent PNG to the current device without cloud saving, verify a real browser download, and preserve the workspace on failure/cancel.
+
+Hardware capability follows the device/browser's input support. Physical tablet/pen and mobile-browser download checks remain release verification; emulated input does not establish universal hardware compatibility.
+
 ## Stage 5 — Disabled gateway and deterministic story structure
 
 - [ ] Define versioned gateway request/response contracts, trace IDs, and an explicit disabled result.

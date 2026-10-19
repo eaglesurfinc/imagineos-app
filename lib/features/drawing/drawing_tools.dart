@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'drawing_document.dart';
 
 const drawingToolNames = <DrawingTool, String>{
+  DrawingTool.select: 'Select area',
+  DrawingTool.lasso: 'Lasso select',
   DrawingTool.pen: 'Pen',
   DrawingTool.pencil: 'Pencil',
   DrawingTool.marker: 'Marker',
@@ -15,9 +17,20 @@ const drawingToolNames = <DrawingTool, String>{
   DrawingTool.ellipse: 'Ellipse',
   DrawingTool.cutout: 'Outline cutout',
   DrawingTool.backgroundEraser: 'Remove area',
-  DrawingTool.pan: 'Pan'
+  DrawingTool.pan: 'Pan',
+  DrawingTool.square: 'Square',
+  DrawingTool.circle: 'Circle',
+  DrawingTool.triangle: 'Triangle',
+  DrawingTool.diamond: 'Diamond',
+  DrawingTool.pentagon: 'Pentagon',
+  DrawingTool.hexagon: 'Hexagon',
+  DrawingTool.star: 'Star',
+  DrawingTool.heart: 'Heart',
+  DrawingTool.arrow: 'Arrow'
 };
 const drawingToolIcons = <DrawingTool, IconData>{
+  DrawingTool.select: Icons.near_me_outlined,
+  DrawingTool.lasso: Icons.gesture,
   DrawingTool.pen: Icons.edit,
   DrawingTool.pencil: Icons.draw,
   DrawingTool.marker: Icons.brush,
@@ -31,7 +44,16 @@ const drawingToolIcons = <DrawingTool, IconData>{
   DrawingTool.ellipse: Icons.circle_outlined,
   DrawingTool.cutout: Icons.gesture,
   DrawingTool.backgroundEraser: Icons.auto_fix_high,
-  DrawingTool.pan: Icons.pan_tool_outlined
+  DrawingTool.pan: Icons.pan_tool_outlined,
+  DrawingTool.square: Icons.square_outlined,
+  DrawingTool.circle: Icons.circle_outlined,
+  DrawingTool.triangle: Icons.change_history,
+  DrawingTool.diamond: Icons.diamond_outlined,
+  DrawingTool.pentagon: Icons.pentagon_outlined,
+  DrawingTool.hexagon: Icons.hexagon_outlined,
+  DrawingTool.star: Icons.star_outline,
+  DrawingTool.heart: Icons.favorite_border,
+  DrawingTool.arrow: Icons.arrow_forward
 };
 const drawingPalettes = <String, List<int>>{
   'Sketch': [

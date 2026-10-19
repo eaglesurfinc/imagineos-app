@@ -25,7 +25,7 @@ class LibraryScreen extends StatelessWidget {
             icon: const Icon(Icons.draw),
             label: const Text('Try drawing studio')),
         const Text(
-            'Device draft only in offline preview. Configure parent access to save drawings to your library.'),
+            'Use Save to device for a PNG copy. Parent access enables saving characters to your cloud library.'),
       ],
     );
   }

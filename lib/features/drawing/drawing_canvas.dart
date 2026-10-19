@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'drawing_document.dart';
 import 'drawing_renderer.dart';
+import 'drawing_shapes.dart';
 
 class CheckerPainter extends CustomPainter {
   const CheckerPainter();
@@ -27,12 +28,14 @@ class CheckerPainter extends CustomPainter {
 
 class DrawingCanvasPainter extends CustomPainter {
   const DrawingCanvasPainter(
-      this.document, this.base, this.active, this.outline, this.cursor);
+      this.document, this.base, this.active, this.outline, this.cursor,
+      {this.selection = const []});
   final DrawingDocument document;
   final ui.Image? base;
   final DrawingStroke? active;
   final List<DrawingPoint> outline;
   final Offset? cursor;
+  final List<DrawingPoint> selection;
   @override
   void paint(Canvas canvas, Size size) {
     const CheckerPainter().paint(canvas, size);
@@ -40,11 +43,7 @@ class DrawingCanvasPainter extends CustomPainter {
     canvas.scale(size.width / document.width, size.height / document.height);
     paintDrawing(canvas, document, base, active: active);
     if (outline.isNotEmpty) {
-      final path = Path()..moveTo(outline.first.x, outline.first.y);
-      for (final p in outline.skip(1)) {
-        path.lineTo(p.x, p.y);
-      }
-      path.close();
+      final path = drawingPolygon(outline);
       canvas.drawPath(path,
           Paint()..color = const Color(0xff5a3ce0).withValues(alpha: .15));
       canvas.drawPath(
@@ -53,6 +52,26 @@ class DrawingCanvasPainter extends CustomPainter {
             ..color = const Color(0xff5a3ce0)
             ..style = PaintingStyle.stroke
             ..strokeWidth = 3);
+    }
+    if (selection.length >= 3) {
+      final path = drawingPolygon(selection);
+      canvas.drawPath(path,
+          Paint()..color = const Color(0xff007b94).withValues(alpha: .07));
+      canvas.drawPath(
+          path,
+          Paint()
+            ..color = const Color(0xff007b94)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2);
+      final bounds = path.getBounds();
+      for (final point in [
+        bounds.topLeft,
+        bounds.topRight,
+        bounds.bottomLeft,
+        bounds.bottomRight
+      ]) {
+        canvas.drawCircle(point, 4, Paint()..color = const Color(0xff007b94));
+      }
     }
     if (cursor != null) {
       final paint = Paint()

@@ -19,6 +19,8 @@ Both photo upload and in-app drawing remain in scope. Upload-first is implementa
 
 The founder expanded Stage 4 on 2026-10-19: provide drawing kits, useful colors and utilities, and extract artwork from both paper photos and busy backgrounds onto an empty canvas. Include brushes, adjustable size/opacity, palettes/custom colors, shapes, fill, eyedropper, erasing, undo/redo, and canvas zoom. Extraction must offer review and correction, preserve the uploaded original, and save accepted edits as explicit new versions. Paper cleanup and manual outlined cutouts satisfy the initial extraction workflow; automatic semantic background separation requires a later recorded provider decision and authorization. A full professional art suite remains outside this increment.
 
+The same day's follow-up requires paper cleanup that protects faint drawing lines, more precise connected-area removal, rectangular pointer/lasso selections for targeted edits, additional shapes, and touch/pen input through the current device. Use device-reported pressure and eraser input where available; prioritize pen strokes over finger contact and provide touch navigation plus a pen-only option. Support compatible pens exposed by the operating system without a vendor-specific integration. Bluetooth pairing belongs to device settings; a paired accessory alone does not establish digitizer compatibility. Add Save to device for a PNG copy of the current canvas, including transparency and offline use, without changing the cloud library or saved originals.
+
 ## Data and access
 
 - Supabase Auth with explicit parent/child/family relationships. Minimize child data; do not require child email merely to identify a creator profile.

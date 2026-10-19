@@ -14,6 +14,10 @@ import 'extraction_review.dart';
 import 'drawing_drafts.dart';
 import 'drawing_pixels.dart';
 import 'drawing_renderer.dart';
+import 'drawing_shapes.dart';
+import 'drawing_input.dart';
+import 'pen_setup.dart';
+import 'drawing_download.dart';
 
 Future<OriginalFile?> openDrawingStudio(BuildContext context,
         {required String draftKey,
@@ -25,10 +29,15 @@ Future<OriginalFile?> openDrawingStudio(BuildContext context,
 
 class DrawingStudio extends StatefulWidget {
   const DrawingStudio(
-      {super.key, this.source, required this.draftKey, this.drafts});
+      {super.key,
+      this.source,
+      required this.draftKey,
+      this.drafts,
+      this.saveDrawing = saveDrawingToDevice});
   final Uint8List? source;
   final String draftKey;
   final DrawingDraftStore? drafts;
+  final SaveDrawing saveDrawing;
   @override
   State<DrawingStudio> createState() => _DrawingStudioState();
 }
@@ -48,6 +57,12 @@ class _DrawingStudioState extends State<DrawingStudio> {
   String _status = 'Opening your workspace…';
   List<DrawingPoint> _points = [];
   int? _pointer;
+  bool _inverted = false, _penOnly = false;
+  String _input = 'Draw with a finger, mouse, or compatible pen.';
+  List<DrawingPoint> _selection = [];
+  DrawingTool get _activeTool => _inverted ? DrawingTool.eraser : _tool;
+  List<List<double>> get _selectionPolygon =>
+      _selection.map((p) => [p.x, p.y]).toList();
   Offset _cursor = const Offset(512, 512);
   Timer? _checkpoint;
 
@@ -172,74 +187,105 @@ class _DrawingStudioState extends State<DrawingStudio> {
   }
 
   DrawingStroke _stroke(List<DrawingPoint> points) => DrawingStroke(
-      tool: _tool,
+      tool: _activeTool,
       points: List.of(points),
       color: _color,
       width: _width,
       opacity: _opacity,
-      filled: _filled);
-  bool get _shape => [
-        DrawingTool.line,
-        DrawingTool.rectangle,
-        DrawingTool.ellipse
-      ].contains(_tool);
-  bool get _rasterTool => [
+      filled: _filled,
+      selection: List.of(_selection));
+  bool get _shape => _activeTool.isShape;
+  bool get _rasterTool => const {
         DrawingTool.fill,
         DrawingTool.eyedropper,
         DrawingTool.backgroundEraser
-      ].contains(_tool);
+      }.contains(_activeTool);
+  List<DrawingPoint> get _outline =>
+      _activeTool == DrawingTool.select && _points.length > 1
+          ? selectionRectangle(_points.first, _points.last)
+          : (_activeTool.isSelection || _activeTool == DrawingTool.cutout)
+              ? _points
+              : const [];
   DrawingPoint _point(Offset position, Size size, double pressure) =>
       DrawingPoint(
           (position.dx / size.width * _document!.width)
               .clamp(0, _document!.width.toDouble()),
           (position.dy / size.height * _document!.height)
               .clamp(0, _document!.height.toDouble()),
-          pressure.isFinite && pressure > 0 ? pressure.clamp(0, 1) : 1);
-  void _down(PointerDownEvent event, Size size) {
+          pressure.isFinite && pressure >= 0 ? pressure.clamp(0, 1) : 1);
+  void _down(PointerEvent event, Offset position, Size size) {
     if (_busy || _tool == DrawingTool.pan || _pointer != null) return;
     _focus.requestFocus();
+    _inverted = event.kind == ui.PointerDeviceKind.invertedStylus;
     _pointer = event.pointer;
-    final point = _point(event.localPosition, size,
-        event.kind == ui.PointerDeviceKind.stylus ? event.pressure : 1);
+    final point = _point(position, size, drawingPressure(event));
     setState(() {
+      _input = event.kind == ui.PointerDeviceKind.stylus || _inverted
+          ? 'Pen input received - pressure ${(drawingPressure(event) * 100).round()}%'
+          : event.kind == ui.PointerDeviceKind.touch
+              ? 'Touch input received'
+              : 'Mouse input received';
       _points = [point];
       _cursor = point.offset;
       _showCursor = false;
     });
   }
 
-  void _move(PointerMoveEvent event, Size size) {
+  void _move(PointerEvent event, Offset position, Size size) {
     if (_pointer != event.pointer || _busy || _rasterTool || _points.isEmpty)
       return;
-    final point = _point(event.localPosition, size,
-        event.kind == ui.PointerDeviceKind.stylus ? event.pressure : 1);
+    final point = _point(position, size, drawingPressure(event));
     if ((point.offset - _points.last.offset).distance < 1) return;
     setState(() {
-      if (_shape)
+      if (_shape || _activeTool == DrawingTool.select)
         _points = [_points.first, point];
       else if (_points.length < 6000) _points = [..._points, point];
       _cursor = point.offset;
+      if (event.kind == ui.PointerDeviceKind.stylus || _inverted) {
+        _input =
+            'Pen input received - pressure ${(drawingPressure(event) * 100).round()}%';
+      }
     });
   }
 
   Future<void> _finish() async {
     final points = List<DrawingPoint>.of(_points);
+    final tool = _activeTool, raster = _rasterTool;
+    final stroke = _stroke(points);
     setState(() {
       _points = [];
       _pointer = null;
+      _inverted = false;
     });
     if (points.isEmpty || _busy) return;
-    if (_rasterTool) {
+    if (tool.isSelection) {
+      final polygon = tool == DrawingTool.select
+          ? selectionRectangle(points.first, points.last)
+          : points;
+      final bounds = drawingPolygon(polygon).getBounds();
+      setState(() {
+        if (polygon.length >= 3 && bounds.width >= 2 && bounds.height >= 2) {
+          _selection = polygon;
+          _status =
+              'Area selected. Paint and cleanup stay inside it. Choose a tool, delete it, or keep only this area.';
+        } else {
+          _status =
+              'Drag the pointer around an area, or trace it with Lasso select.';
+        }
+      });
+      return;
+    }
+    if (raster) {
       await _pixel(
-          _tool == DrawingTool.fill
+          tool == DrawingTool.fill
               ? DrawingPixelOperation.fill
-              : _tool == DrawingTool.eyedropper
+              : tool == DrawingTool.eyedropper
                   ? DrawingPixelOperation.pick
                   : DrawingPixelOperation.remove,
           points.first);
       return;
     }
-    if (_tool == DrawingTool.cutout) {
+    if (tool == DrawingTool.cutout) {
       if (points.length < 3) {
         setState(() => _status =
             'Draw a closed outline around the artwork, then release.');
@@ -255,7 +301,7 @@ class _DrawingStudioState extends State<DrawingStudio> {
       return;
     }
     setState(() => _document!.commit(_document!.frame
-        .copyWith(strokes: [..._document!.frame.strokes, _stroke(points)])));
+        .copyWith(strokes: [..._document!.frame.strokes, stroke])));
     _checkpointDraft();
   }
 
@@ -267,15 +313,15 @@ class _DrawingStudioState extends State<DrawingStudio> {
       final bytes = await exportDrawing(_document!, _base,
           background: operation == DrawingPixelOperation.pick);
       if (!mounted) return;
-      var result = await compute(
-          processDrawingPixels,
-          RasterRequest(bytes,
-              operation: operation,
-              x: point.x.floor(),
-              y: point.y.floor(),
-              color: Color(_color).withValues(alpha: _opacity).toARGB32(),
-              tolerance: _tolerance,
-              polygon: polygon));
+      final request = RasterRequest(bytes,
+          operation: operation,
+          x: point.x.floor(),
+          y: point.y.floor(),
+          color: Color(_color).withValues(alpha: _opacity).toARGB32(),
+          tolerance: _tolerance,
+          polygon: polygon,
+          selection: _selectionPolygon);
+      var result = await compute(processDrawingPixels, request);
       if (!mounted) return;
       if (operation == DrawingPixelOperation.pick) {
         setState(() {
@@ -287,8 +333,7 @@ class _DrawingStudioState extends State<DrawingStudio> {
         return;
       }
       if (operation.extractsArtwork) {
-        final preview = await reviewDrawingExtraction(
-            context, bytes, result, operation, point, polygon, _tolerance);
+        final preview = await reviewDrawingExtraction(context, request, result);
         if (!mounted) return;
         if (preview == null) {
           setState(() => _busy = false);
@@ -380,6 +425,28 @@ class _DrawingStudioState extends State<DrawingStudio> {
     }
   }
 
+  Future<void> _saveLocal() async {
+    if (_busy || _document == null) return;
+    setState(() => _busy = true);
+    try {
+      final bytes = await exportDrawing(_document!, _base);
+      final stamp =
+          DateTime.now().toIso8601String().replaceAll(RegExp(r'[:.]'), '-');
+      final saved =
+          await widget.saveDrawing(bytes, 'imagineos-drawing-$stamp.png');
+      if (mounted)
+        setState(() => _status = saved
+            ? 'PNG ready to save. Check this device\'s Downloads or save prompt. Save to your library separately to keep it online.'
+            : 'Device save cancelled. Your drawing is still here.');
+    } catch (_) {
+      if (mounted)
+        setState(() => _status =
+            'Could not save to this device. Your drawing is kept; check download permissions and retry.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _leave() async {
     if (_busy) return;
     _checkpoint?.cancel();
@@ -423,7 +490,9 @@ class _DrawingStudioState extends State<DrawingStudio> {
             (_cursor.dy + movement.dy).clamp(0, _document!.height.toDouble()));
         if (_points.isNotEmpty) {
           final point = DrawingPoint(_cursor.dx, _cursor.dy);
-          _points = _shape ? [_points.first, point] : [..._points, point];
+          _points = _shape || _tool == DrawingTool.select
+              ? [_points.first, point]
+              : [..._points, point];
         }
       });
       return KeyEventResult.handled;
@@ -442,6 +511,7 @@ class _DrawingStudioState extends State<DrawingStudio> {
       setState(() {
         _points = [];
         _pointer = null;
+        _selection = [];
       });
       return KeyEventResult.handled;
     }
@@ -452,6 +522,30 @@ class _DrawingStudioState extends State<DrawingStudio> {
     final color = await chooseDrawingColor(context, _color);
     if (mounted && color != null) setState(() => _color = color);
   }
+
+  Widget _toolChoices({required bool shapes}) => Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: drawingToolNames.entries
+          .where((tool) => tool.key.isShape == shapes)
+          .map((tool) => ChoiceChip(
+              avatar: Icon(drawingToolIcons[tool.key], size: 18),
+              label: Text(tool.value),
+              selected: _tool == tool.key,
+              onSelected: _busy
+                  ? null
+                  : (_) => setState(() {
+                        _tool = tool.key;
+                        _opacity = tool.key == DrawingTool.highlighter
+                            ? .3
+                            : tool.key == DrawingTool.softBrush
+                                ? .7
+                                : 1;
+                        _points = [];
+                        _pointer = null;
+                        _inverted = false;
+                      })))
+          .toList());
 
   Widget _controls() =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -466,6 +560,9 @@ class _DrawingStudioState extends State<DrawingStudio> {
                         ? null
                         : (_) => setState(() {
                               _kit = kit;
+                              _points = [];
+                              _pointer = null;
+                              _inverted = false;
                               _tool = kit == 'Sketch'
                                   ? DrawingTool.pencil
                                   : kit == 'Ink'
@@ -483,27 +580,32 @@ class _DrawingStudioState extends State<DrawingStudio> {
                 .toList()),
         const SizedBox(height: 12),
         Text('Tools', style: Theme.of(context).textTheme.titleMedium),
-        Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: drawingToolNames.entries
-                .map((tool) => ChoiceChip(
-                    avatar: Icon(drawingToolIcons[tool.key], size: 18),
-                    label: Text(tool.value),
-                    selected: _tool == tool.key,
-                    onSelected: _busy
-                        ? null
-                        : (_) => setState(() {
-                              _tool = tool.key;
-                              _opacity = tool.key == DrawingTool.highlighter
-                                  ? 0.3
-                                  : tool.key == DrawingTool.softBrush
-                                      ? 0.7
-                                      : 1;
-                              _points = [];
-                              _pointer = null;
-                            })))
-                .toList()),
+        _toolChoices(shapes: false),
+        const SizedBox(height: 12),
+        Text('Shapes', style: Theme.of(context).textTheme.titleMedium),
+        _toolChoices(shapes: true),
+        if (_selection.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          const Text('Selection active: edits stay inside the blue outline.'),
+          Wrap(spacing: 6, children: [
+            TextButton(
+                onPressed: _busy ? null : () => setState(() => _selection = []),
+                child: const Text('Deselect')),
+            TextButton(
+                onPressed: _busy
+                    ? null
+                    : () => _pixel(DrawingPixelOperation.clearSelection,
+                        const DrawingPoint(0, 0)),
+                child: const Text('Delete selection')),
+            TextButton(
+                onPressed: _busy
+                    ? null
+                    : () => _pixel(
+                        DrawingPixelOperation.cutout, const DrawingPoint(0, 0),
+                        polygon: _selectionPolygon),
+                child: const Text('Keep only selection')),
+          ]),
+        ],
         const SizedBox(height: 12),
         Text('Colors', style: Theme.of(context).textTheme.titleMedium),
         Wrap(
@@ -564,16 +666,35 @@ class _DrawingStudioState extends State<DrawingStudio> {
               title: const Text('Filled shape'),
               value: _filled,
               onChanged: _busy ? null : (v) => setState(() => _filled = v)),
-        Text('Fill / cleanup tolerance: ${_tolerance.round()}'),
+        Text('Fill / area tolerance: ${_tolerance.round()}'),
         Slider(
             value: _tolerance,
             max: 100,
             divisions: 100,
             onChanged: _busy ? null : (v) => setState(() => _tolerance = v)),
         const Divider(),
+        SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Pen only'),
+            subtitle: const Text(
+                'Pen draws; fingers move the canvas. Two fingers pinch to zoom.'),
+            value: _penOnly,
+            onChanged: _busy
+                ? null
+                : (value) => setState(() {
+                      _penOnly = value;
+                      _points = [];
+                      _pointer = null;
+                    })),
+        Text(_input),
+        TextButton.icon(
+            onPressed: () => showPenSetup(context),
+            icon: const Icon(Icons.bluetooth),
+            label: const Text('Connect a pen')),
+        const Divider(),
         Text('Extract artwork', style: Theme.of(context).textTheme.titleMedium),
         const Text(
-            'Paper: remove light paper, then review. Busy photo: outline the drawing, then remove leftover areas or erase by hand.'),
+            'Paper cleanup protects faint lines. Select an area to limit cleanup. For busy photos, outline the drawing and refine with Remove area. Pinch with two fingers to zoom.'),
         OutlinedButton.icon(
             onPressed: _busy
                 ? null
@@ -609,87 +730,84 @@ class _DrawingStudioState extends State<DrawingStudio> {
               child: const Text('Clear canvas'))
         ]),
       ]);
+  void _zoom(double multiplier) {
+    final scale = _transform.value.getMaxScaleOnAxis();
+    final factor = (scale * multiplier).clamp(.5, 5) / scale;
+    _transform.value = Matrix4.copy(_transform.value)
+      ..scaleByDouble(factor, factor, 1, 1);
+  }
+
   Widget _canvas() => LayoutBuilder(builder: (context, constraints) {
         final document = _document!;
         final ratio = document.width / document.height;
         final width = math.min(
             constraints.maxWidth - 24, (constraints.maxHeight - 24) * ratio);
+        final size = Size(width, width / ratio);
         return Center(
             child: SizedBox(
-                width: width,
-                height: width / ratio,
-                child: InteractiveViewer(
-                    transformationController: _transform,
-                    panEnabled: _tool == DrawingTool.pan,
-                    scaleEnabled: _tool == DrawingTool.pan,
-                    minScale: .5,
-                    maxScale: 5,
-                    child: CallbackShortcuts(
-                        bindings: {
-                          const SingleActivator(LogicalKeyboardKey.keyZ,
-                              control: true): () => _history(false),
-                          const SingleActivator(LogicalKeyboardKey.keyZ,
-                              meta: true): () => _history(false),
-                          const SingleActivator(LogicalKeyboardKey.keyZ,
-                              control: true, shift: true): () => _history(true),
-                          const SingleActivator(LogicalKeyboardKey.keyY,
-                              control: true): () => _history(true),
+                width: size.width,
+                height: size.height,
+                child: CallbackShortcuts(
+                    bindings: {
+                      const SingleActivator(LogicalKeyboardKey.keyZ,
+                          control: true): () => _history(false),
+                      const SingleActivator(LogicalKeyboardKey.keyZ,
+                          meta: true): () => _history(false),
+                      const SingleActivator(LogicalKeyboardKey.keyZ,
+                          control: true, shift: true): () => _history(true),
+                      const SingleActivator(LogicalKeyboardKey.keyZ,
+                          meta: true, shift: true): () => _history(true),
+                      const SingleActivator(LogicalKeyboardKey.keyY,
+                          control: true): () => _history(true),
+                    },
+                    child: Focus(
+                        focusNode: _focus,
+                        onKeyEvent: _key,
+                        onFocusChange: (value) {
+                          if (mounted) setState(() => _showCursor = value);
                         },
-                        child: Focus(
-                            focusNode: _focus,
-                            onKeyEvent: _key,
-                            onFocusChange: (value) {
-                              if (mounted) setState(() => _showCursor = value);
-                            },
-                            child: Semantics(
-                                label:
-                                    'Drawing canvas. Arrow keys move the cursor. Space starts or finishes a stroke. Escape cancels it.',
-                                child: GestureDetector(
-                                    behavior: HitTestBehavior.opaque,
-                                    onPanStart: _tool == DrawingTool.pan
-                                        ? null
-                                        : (_) {},
-                                    onPanUpdate: _tool == DrawingTool.pan
-                                        ? null
-                                        : (_) {},
-                                    child: Listener(
-                                        behavior: HitTestBehavior.opaque,
-                                        onPointerDown: (event) => _down(
-                                            event, Size(width, width / ratio)),
-                                        onPointerMove: (event) => _move(
-                                            event, Size(width, width / ratio)),
-                                        onPointerUp: (event) {
-                                          if (_pointer == event.pointer)
-                                            _finish();
-                                        },
-                                        onPointerCancel: (event) {
-                                          if (_pointer == event.pointer)
-                                            setState(() {
-                                              _points = [];
-                                              _pointer = null;
-                                            });
-                                        },
-                                        child: CustomPaint(
-                                            key: const ValueKey(
-                                                'drawing-canvas'),
-                                            painter: DrawingCanvasPainter(
-                                                DrawingDocument(
-                                                    width: document.width,
-                                                    height: document.height,
-                                                    frame: document.frame),
-                                                _base,
-                                                _points.isNotEmpty &&
-                                                        !_rasterTool &&
-                                                        _tool !=
-                                                            DrawingTool.cutout
-                                                    ? _stroke(_points)
-                                                    : null,
-                                                _tool == DrawingTool.cutout
-                                                    ? _points
-                                                    : const [],
-                                                _showCursor ? _cursor : null),
-                                            child: const SizedBox
-                                                .expand())))))))));
+                        child: Semantics(
+                            label:
+                                'Drawing canvas. Arrow keys move the cursor. Space starts or finishes a stroke. Escape cancels. Two fingers zoom.',
+                            child: MouseRegion(
+                                cursor: _tool.isSelection
+                                    ? SystemMouseCursors.basic
+                                    : _tool == DrawingTool.pan
+                                        ? SystemMouseCursors.grab
+                                        : SystemMouseCursors.precise,
+                                child: DrawingInputSurface(
+                                    controller: _transform,
+                                    pan: _tool == DrawingTool.pan,
+                                    penOnly: _penOnly,
+                                    onStart: (event, position) =>
+                                        _down(event, position, size),
+                                    onMove: (event, position) =>
+                                        _move(event, position, size),
+                                    onEnd: _finish,
+                                    onCancel: () => setState(() {
+                                          _points = [];
+                                          _pointer = null;
+                                          _inverted = false;
+                                        }),
+                                    child: CustomPaint(
+                                        key: const ValueKey('drawing-canvas'),
+                                        painter: DrawingCanvasPainter(
+                                            DrawingDocument(
+                                                width: document.width,
+                                                height: document.height,
+                                                frame: document.frame),
+                                            _base,
+                                            _points.isNotEmpty &&
+                                                    !_rasterTool &&
+                                                    !_activeTool.isSelection &&
+                                                    _activeTool !=
+                                                        DrawingTool.cutout
+                                                ? _stroke(_points)
+                                                : null,
+                                            _outline,
+                                            _showCursor ? _cursor : null,
+                                            selection: _selection),
+                                        child: const SizedBox.expand()))))))));
       });
   @override
   Widget build(BuildContext context) {
@@ -769,23 +887,13 @@ class _DrawingStudioState extends State<DrawingStudio> {
                                               .labelMedium),
                                       IconButton(
                                           tooltip: 'Zoom in',
-                                          onPressed: _busy
-                                              ? null
-                                              : () => setState(() => _transform
-                                                      .value =
-                                                  Matrix4.copy(_transform.value)
-                                                    ..scaleByDouble(
-                                                        1.25, 1.25, 1, 1)),
+                                          onPressed:
+                                              _busy ? null : () => _zoom(1.25),
                                           icon: const Icon(Icons.zoom_in)),
                                       IconButton(
                                           tooltip: 'Zoom out',
-                                          onPressed: _busy
-                                              ? null
-                                              : () => setState(() => _transform
-                                                      .value =
-                                                  Matrix4.copy(_transform.value)
-                                                    ..scaleByDouble(
-                                                        .8, .8, 1, 1)),
+                                          onPressed:
+                                              _busy ? null : () => _zoom(.8),
                                           icon: const Icon(Icons.zoom_out)),
                                       TextButton(
                                           onPressed: _busy
@@ -793,6 +901,12 @@ class _DrawingStudioState extends State<DrawingStudio> {
                                               : () => setState(() => _transform
                                                   .value = Matrix4.identity()),
                                           child: const Text('Fit canvas')),
+                                      TextButton.icon(
+                                          onPressed: _busy || _points.isNotEmpty
+                                              ? null
+                                              : _saveLocal,
+                                          icon: const Icon(Icons.download),
+                                          label: const Text('Save to device')),
                                       Text(drawingToolNames[_tool]!,
                                           style: const TextStyle(
                                               fontWeight: FontWeight.bold)),
