@@ -4,7 +4,7 @@ Updated: 2026-10-19 (America/Chicago). `BUILD_PLAN.md` defines acceptance gates.
 
 ## Current increment
 
-Stage 4 drawing and extraction are implemented locally on `feature/stage-4-drawing-studio`, which includes the preceding deletion commit `c561012`. The founder's no-push hold remains active: no changes from this branch have been pushed or deployed. Stage 4 adds no backend schema, policy, paid service or AI provider.
+Stage 4 drawing and extraction are implemented in `2bc9126` on `feature/stage-4-drawing-studio`, which includes the preceding deletion commit `c561012`. On 2026-10-19 the founder authorized merging and pushing these verified changes to main, lifting the earlier no-push hold. Stage 4 adds no backend schema, policy, paid service or AI provider. Remote deployment success remains to be verified separately.
 
 Use Draw a character for a blank canvas, or Save original and open studio for an uploaded photograph. Existing saved versions have Open drawing studio. The toolkit has pen/pencil/marker/highlighter/soft brush, four color kits, custom HSV/hex colors, size/opacity, shapes, fill, eyedropper, erasing, bounded undo/redo, pan and zoom. Paper cleanup, manual outlined cutouts and connected-area removal have review before applying; an eraser refines the result. Both paper and busy-background workflows preserve the uploaded source and produce transparent PNG versions through the existing save/retry pipeline.
 
@@ -16,7 +16,7 @@ Stages 0-4 now have development evidence. No Stage 4 deployment is claimed; the 
 
 The preceding character-deletion increment was implemented on `feature/character-deletion` and is included here: Delete character removes the whole identity, versions, files, and unfinished uploads; Delete selected version removes only the chosen version while retaining the others. Confirmation is required. The last saved version uses Delete character. Failed cleanup has Retry deletion and persistent Finish deletion recovery. New version numbers never reuse deleted numbers, and stale initial-upload retries cannot recreate removed artwork.
 
-The founder requested no push to main. Nothing from this increment has been pushed or deployed to Vercel. Development migration `20261019201740_character_deletion` is already applied to the approved hosted Supabase project; no existing user artwork was deleted during verification. Implementation files are `character_store.dart`, `character_detail_screen.dart`, `character_library_screen.dart`; hosted checks are in `backend/tests/character_deletion_smoke.mjs` and the browser script's `--delete` flow.
+The founder's earlier hold on publishing deletion changes was lifted by the 2026-10-19 push authorization above. Development migration `20261019201740_character_deletion` is already applied to the approved hosted Supabase project; no existing user artwork was deleted during verification. Implementation files are `character_store.dart`, `character_detail_screen.dart`, `character_library_screen.dart`; hosted checks are in `backend/tests/character_deletion_smoke.mjs` and the browser script's `--delete` flow.
 
 Manual cropping/editing of saved uploads is now implemented as a bounded Stage 4 increment. Open a saved character, select its source version, choose Crop and edit, apply a crop/rotation/flip, then Use edited drawing and Save new version. Undo/reset never replace the saved source. Cancel makes no save; failed saves keep the edited bytes and retry identity.
 
@@ -60,6 +60,6 @@ Vercel build variables are founder-confirmed. Remote deployment tools still lack
 
 ## Next action
 
-Review the local Stage 4 branch and its shared handoff documents. Do not push or deploy while the founder's hold remains. After an authorized deployment, repeat the new drawing/extraction and deletion flows with fictional artwork. Signup confirmation mail remains a separate adult test; keep email confirmation enabled.
+After the authorized main push, verify the resulting Vercel deployment and repeat the new drawing/extraction and deletion flows there with fictional artwork. Signup confirmation mail remains a separate adult test; keep email confirmation enabled.
 
 The next planned build after the Stage 4 gate is Stage 5: an explicitly disabled gateway and deterministic story/text structure. No story generation or paid provider calls before the later gates. No protected parent mode or pilot readiness is claimed.
