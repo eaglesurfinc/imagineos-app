@@ -4,7 +4,7 @@ Updated: 2026-10-19 (America/Chicago). `BUILD_PLAN.md` defines acceptance gates.
 
 ## Current increment
 
-Stage 5 is implemented in `0d10816` locally on `feature/stage-5-story-foundation`, based on published main `4ca537b`. It also includes the founder's in-turn paper-extraction regression fix, Delete/Backspace selection shortcuts and colored canvas text tool. No changes from this increment have been pushed to main or Vercel. The explicitly disabled `illustration-gateway` v1 is deployed only to the approved Supabase development project with JWT verification enabled; it introduces no schema migration, provider, administrative client credential or paid call.
+Stage 5 is implemented in `0d10816`, prepared on `feature/stage-5-story-foundation` from published main `4ca537b`. It also includes the founder's in-turn paper-extraction regression fix, Delete/Backspace selection shortcuts and colored canvas text tool. On 2026-10-19 the founder authorized merging and pushing this verified increment to main. Remote Vercel deployment success remains to be verified separately. The explicitly disabled `illustration-gateway` v1 is deployed only to the approved Supabase development project with JWT verification enabled; it introduces no schema migration, provider, administrative client credential or paid call.
 
 Open a saved character/version and choose Plan a story page. Scene direction, exact dialogue and narration are retained separately; only the scene and pinned source IDs/checksum enter the gateway request. The fixed logical-width page preview renders the original artwork plus app-controlled exact words, growing vertically for all lines. One local page draft belongs to each version; this is not a generated scene, cloud-saved story or story export. The contract/state/retry/recovery boundary is in `docs/ILLUSTRATION_GATEWAY.md`, with client modules under `lib/features/story/` and read-only server code under `backend/supabase/functions/illustration-gateway/`.
 
@@ -14,7 +14,7 @@ Paper cleanup now measures photographic noise as well as local lighting, accepts
 
 The drawing canvas accepts Delete/Backspace for its active rectangle/lasso selection while focused; Undo restores removed pixels, and text fields retain normal deletion. Text adds editable exact words, eight bundled OFL fonts, size, palette/custom colors and tap-to-edit. Original fonts/licenses/provenance are under `assets/fonts/`; canvas layout/rendering/dialog modules are separate. Device drafts retain text items until pixel cleanup, selection deletion or merge flattens them; Undo restores editability. Cloud versions and downloaded files remain PNG pixels. The editor refuses text that would extend below its canvas region.
 
-Stage 5 and the added drawing follow-ups meet their development acceptance gates. Final combined checks, hosted isolation, browser recovery/rendering and fictional-fixture cleanup passed as recorded below. This increment remains local for review; the previous drawing-precision increment is retained as historical evidence in the next section.
+Stage 5 and the added drawing follow-ups meet their development acceptance gates. Final combined checks, hosted isolation, browser recovery/rendering and fictional-fixture cleanup passed as recorded below. Publication to main is founder-authorized; the previous drawing-precision increment is retained as historical evidence in the next section.
 
 ## Established drawing-precision baseline
 
@@ -97,6 +97,6 @@ Vercel build variables are founder-confirmed. Remote deployment tools still lack
 
 ## Next action
 
-Review the verified feature branch before any main/Vercel publication. Stage 6 is the next planned build: select a provider, add atomic job/quota/cost controls and validation, and obtain the separately capped benchmark authorization before making paid calls. Stage 5 disabled replay is not a durable server idempotency ledger.
+Verify the resulting main/Vercel deployment, including the story-draft flow and drawing follow-ups. Stage 6 is the next planned build: select a provider, add atomic job/quota/cost controls and validation, and obtain the separately capped benchmark authorization before making paid calls. Stage 5 disabled replay is not a durable server idempotency ledger.
 
 Actual tablets/pens, OS pairing, mobile-browser save prompts and the user's original problem photo still require device/manual checks. Signup confirmation email delivery remains separate; keep email confirmation enabled. No protected parent mode, accepted AI artwork or pilot readiness is claimed.
