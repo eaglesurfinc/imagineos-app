@@ -4,7 +4,7 @@ Updated: 2026-10-19 (America/Chicago). `BUILD_PLAN.md` defines acceptance gates.
 
 ## Current increment
 
-The drawing-precision follow-up is implemented locally on `feature/drawing-precision-tablet`, based on published main `0f7f6d7`. This increment has not been pushed or deployed. It adds no backend migration, provider, dependency, account fixture or paid resource.
+The drawing-precision follow-up is implemented in `171f43d` on `feature/drawing-precision-tablet`, based on main `0f7f6d7`. On 2026-10-19 the founder authorized merging and pushing this verified increment to main. Remote deployment success remains to be verified separately. It adds no backend migration, provider, dependency, account fixture or paid resource.
 
 Paper removal now estimates nearby page colors and gradual lighting instead of discarding every light pixel; review includes Compare original. New regressions preserve faint graphite, pale colors and thin lines at low/default/high strength, plus a pencil line crossing uneven lighting. Similar-colored artwork, deep shadows or textured pages can still be ambiguous and need manual cleanup. Remove area uses edge-limited four-connected growth and optional tiny-gap bridging, with review controls to adjust tolerance/protection.
 
@@ -76,6 +76,6 @@ Vercel build variables are founder-confirmed. Remote deployment tools still lack
 
 ## Next action
 
-Review the completed local drawing-precision branch before any new publication. Check actual tablets/pens and mobile-browser Downloads/save prompts with fictional artwork, including OS pairing when required. Independently verify the existing Vercel deployment and repeat drawing/extraction and deletion flows after publication. Signup confirmation mail remains a separate adult test; keep email confirmation enabled.
+After the authorized main push, verify the resulting Vercel deployment and check actual tablets/pens and mobile-browser Downloads/save prompts with fictional artwork, including OS pairing when required. Repeat drawing/extraction and deletion flows there. Signup confirmation mail remains a separate adult test; keep email confirmation enabled.
 
 The next planned build after the Stage 4 gate is Stage 5: an explicitly disabled gateway and deterministic story/text structure. No story generation or paid provider calls before the later gates. No protected parent mode or pilot readiness is claimed.
