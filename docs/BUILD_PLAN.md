@@ -90,7 +90,7 @@ Gate: requests cannot accidentally invoke a live provider, rewrite dialogue, or 
 
 Gate: evidence shows recognizable output with bounded cost and reliable failure handling. Metadata or attractive pictures alone do not establish continuity.
 
-The founder approved both eligible subscription allowances and parent-owned API credits on 2026-10-19. Provider billing belongs to the connected parent; API and subscription balances are not interchangeable. The founder subsequently required live generation to stay disabled until an account is connected. Keep the benchmark unchecked until that connection and the capped spending authorization exist. The founder authorized continuing into Stage 7 while retaining this work off main; dependent live acceptance gates remain pending rather than being waived.
+The founder approved both eligible subscription allowances and parent-owned API credits on 2026-10-19. Provider billing belongs to the connected parent; API and subscription balances are not interchangeable. The founder subsequently required live generation to stay disabled until an account is connected. Keep the benchmark unchecked until that connection and the capped spending authorization exist. The founder authorized continuing into Stage 7; dependent live acceptance gates remain pending. Publication authorization and implementation progress are tracked in `STATUS.md`.
 
 ## Stage 7 — Complete story and export
 
