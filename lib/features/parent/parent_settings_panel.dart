@@ -4,16 +4,21 @@ import 'parent_account.dart';
 import 'parent_controls.dart';
 import 'provider_connections.dart';
 import 'provider_connections_screen.dart';
+import 'parent_children_screen.dart';
 
 class ParentSettingsPanel extends StatefulWidget {
   const ParentSettingsPanel(
       {super.key,
       required this.account,
       required this.controls,
-      this.providers});
+      this.providers,
+      this.startChild,
+      this.familyLibraryBuilder});
   final ParentAccount account;
   final ParentControls controls;
   final ProviderConnections? providers;
+  final Future<void> Function(String code)? startChild;
+  final WidgetBuilder? familyLibraryBuilder;
   @override
   State<ParentSettingsPanel> createState() => _ParentSettingsPanelState();
 }
@@ -183,6 +188,29 @@ class _ParentSettingsPanelState extends State<ParentSettingsPanel>
               return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (!data.deletionPending) ...[
+                      FilledButton.icon(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                      builder: (_) => ParentChildrenScreen(
+                                          controls: widget.controls,
+                                          startOnThisDevice:
+                                              widget.startChild))),
+                          icon: const Icon(Icons.child_care),
+                          label: const Text('Children and sign-in approvals')),
+                      if (widget.familyLibraryBuilder != null)
+                        OutlinedButton.icon(
+                            onPressed: _busy
+                                ? null
+                                : () => Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                        builder: widget.familyLibraryBuilder!)),
+                            icon: const Icon(Icons.folder_outlined),
+                            label: const Text('Review family creations')),
+                      const SizedBox(height: 16),
+                    ],
                     Text('Your family data',
                         style: Theme.of(context).textTheme.titleLarge),
                     for (final entry in const {

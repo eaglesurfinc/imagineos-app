@@ -1,3 +1,4 @@
+import '../../core/creation_permissions.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -501,7 +502,11 @@ class _DrawingStudioState extends State<DrawingStudio> {
     if (_busy || _document == null) return;
     setState(() => _busy = true);
     try {
+      final permissions = CreationPermissions.of(context);
+      await permissions.requireExport();
       final bytes = await exportDrawing(_document!, _base);
+      if (!mounted) return;
+      await permissions.requireExport();
       final stamp =
           DateTime.now().toIso8601String().replaceAll(RegExp(r'[:.]'), '-');
       final saved =
@@ -984,9 +989,13 @@ class _DrawingStudioState extends State<DrawingStudio> {
                                                   .value = Matrix4.identity()),
                                           child: const Text('Fit canvas')),
                                       TextButton.icon(
-                                          onPressed: _busy || _points.isNotEmpty
-                                              ? null
-                                              : _saveLocal,
+                                          onPressed:
+                                              !CreationPermissions.of(context)
+                                                          .export ||
+                                                      _busy ||
+                                                      _points.isNotEmpty
+                                                  ? null
+                                                  : _saveLocal,
                                           icon: const Icon(Icons.download),
                                           label: const Text('Save to device')),
                                       Text(drawingToolNames[_tool]!,

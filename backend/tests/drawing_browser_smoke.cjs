@@ -122,7 +122,7 @@ function photoFixture() {
       await send('Input.dispatchMouseEvent',{type:'mouseReleased',...at(points.at(-1)),button:'left',buttons:0,clickCount:1});
       await delay(800);
     };
-    const reload=async()=>{await send('Page.reload',{ignoreCache:true});await activateSemantics();await waitFor('Save an original');};
+    const reload=async()=>{await send('Page.reload',{ignoreCache:true});await activateSemantics();await button('Parent sign-in');await waitFor('Unlock parent settings');await fill('Parent password',accounts[0].password);await button('Unlock parent settings');await button('Review family creations');await waitFor('Save an original');};
     const saved=async()=>{for(let i=0;i<60;i++){if((await body()).includes('Original saved. You can reopen it below.'))return;await wheel(1500);}throw Error('Save did not finish: '+await body());};
     const rows=async name=>{const r=await fetch(config.SUPABASE_URL+'/rest/v1/original_uploads?state=eq.ready&select=*',{headers});assert.equal(r.status,200);return(await r.json()).filter(row=>row.name===name);};
     const download=async row=>{const r=await fetch(config.SUPABASE_URL+'/storage/v1/object/character-originals/'+row.object_path+'?cacheBust='+Date.now(),{headers});assert.equal(r.status,200);return Buffer.from(await r.arrayBuffer());};
@@ -131,10 +131,10 @@ function photoFixture() {
     await send('Page.setInterceptFileChooserDialog',{enabled:true});
     await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
     await send('Page.navigate',{url:'http://127.0.0.1:8766'});await activateSemantics();
-    await click(292,800);await waitFor('Create a parent account');
+    await button('Parent sign-in');await waitFor('Create a parent account');
     await fill('Parent email',accounts[0].email);await fill('Password',accounts[0].password);
-    await button('Sign in');await waitFor('Unlock parent settings');
-    await click(98,800);await waitFor('Save an original');
+    await button('Sign in');await waitFor('Unlock parent settings');await fill('Parent password',accounts[0].password);await button('Unlock parent settings');await waitFor('Review family creations');
+    await button('Review family creations');await waitFor('Save an original');
     await button('Draw a character');await waitFor('Drawing studio');
     console.log('Checking phone drawing and editable reload recovery.');
     await stroke([[.3,.4],[.35,.32],[.42,.3],[.5,.35],[.58,.3],[.65,.32],[.7,.4],[.65,.65],[.5,.7],[.35,.65],[.3,.4]]);
@@ -172,7 +172,7 @@ function photoFixture() {
     await button('Draw a character');await waitFor('Drawing studio');await stroke([[.3,.3],[.6,.6]]);await waitFor('Draft kept on this device.');
     await button('Keep draft and return');await waitFor('Save an original');
     assert(await evaluate(`Object.keys(localStorage).some(k=>k.includes('imagineos.draft.v1.'))`));
-    await click(292,800);await button('Sign out');await waitFor('Create a parent account');
+    await click(28,28);await button('Sign out');await waitFor('Create a parent account');
     for(let i=0;i<40;i++){if(!await evaluate(`Object.keys(localStorage).some(k=>k.includes('imagineos.draft.v1.'))`))break;await delay(100);}
     assert.equal(await evaluate(`Object.keys(localStorage).some(k=>k.includes('imagineos.draft.v1.'))`),false,'Sign-out retained a drawing draft');
     assert.equal(errors.length,0,JSON.stringify(errors));

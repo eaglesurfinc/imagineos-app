@@ -24,7 +24,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
     }
 
-    & node --test backend/tests/illustration_gateway_test.mjs backend/tests/parent_providers_test.mjs backend/tests/parent_controls_test.mjs
+    & node --test backend/tests/illustration_gateway_test.mjs backend/tests/parent_providers_test.mjs backend/tests/parent_controls_test.mjs backend/tests/child_access_test.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Gateway contract tests failed.' }
 
     & flutter build web

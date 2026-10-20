@@ -7,10 +7,17 @@ import 'parent_settings_panel.dart';
 
 class ParentAccessScreen extends StatefulWidget {
   const ParentAccessScreen(
-      {super.key, required this.account, this.providers, this.controls});
+      {super.key,
+      required this.account,
+      this.providers,
+      this.controls,
+      this.startChild,
+      this.familyLibraryBuilder});
   final ParentAccount account;
   final ProviderConnections? providers;
   final ParentControls? controls;
+  final Future<void> Function(String code)? startChild;
+  final WidgetBuilder? familyLibraryBuilder;
 
   @override
   State<ParentAccessScreen> createState() => _ParentAccessScreenState();
@@ -107,7 +114,9 @@ class _ParentAccessScreenState extends State<ParentAccessScreen> {
             ParentSettingsPanel(
                 account: account,
                 controls: widget.controls!,
-                providers: widget.providers)
+                providers: widget.providers,
+                startChild: widget.startChild,
+                familyLibraryBuilder: widget.familyLibraryBuilder)
           else
             const Text(
                 'Protected parent settings are unavailable in this preview.'),

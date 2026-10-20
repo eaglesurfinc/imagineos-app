@@ -11,6 +11,7 @@ abstract class ParentAccount extends ChangeNotifier {
   Future<void> resetPassword(String email);
   Future<void> updatePassword(String password);
   Future<void> signOut();
+  Future<void> leaveForChild() => signOut();
 }
 
 class SupabaseParentAccount extends ParentAccount {
@@ -59,6 +60,10 @@ class SupabaseParentAccount extends ParentAccount {
 
   @override
   Future<void> signOut() => client.auth.signOut();
+
+  @override
+  Future<void> leaveForChild() =>
+      client.auth.signOut(scope: SignOutScope.local);
 
   @override
   void dispose() {

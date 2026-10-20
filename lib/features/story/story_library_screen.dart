@@ -1,3 +1,4 @@
+import '../../core/creation_permissions.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
@@ -263,9 +264,11 @@ class _StoryLibraryScreenState extends State<StoryLibraryScreen> {
                                         ? null
                                         : () => _open(story),
                                     child: const Text('Open story')),
-                                TextButton(
-                                    onPressed: () => _delete(story),
-                                    child: const Text('Delete story'))
+                                if (CreationPermissions.of(context)
+                                    .deleteSavedWork)
+                                  TextButton(
+                                      onPressed: () => _delete(story),
+                                      child: const Text('Delete story'))
                               ]),
                             ]))),
               if (_hasMore)

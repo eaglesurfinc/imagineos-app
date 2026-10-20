@@ -1,3 +1,4 @@
+import '../../core/creation_permissions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -118,8 +119,11 @@ class _StoryDraftScreenState extends State<StoryDraftScreen> {
       _saveMessage = null;
     });
     try {
+      final permissions = CreationPermissions.of(context);
+      await permissions.requireExport();
       final original = await validateOriginal(widget.image);
       if (!mounted || !_composer.active) return;
+      await permissions.requireExport();
       final bytes = exportStoryDraft(
           _composer.snapshot, original.bytes, original.mimeType);
       final saved = await widget.saveToDevice(
@@ -272,10 +276,12 @@ class _StoryDraftScreenState extends State<StoryDraftScreen> {
                           child: const Text('Load saved page drafts')),
                     ],
                     OutlinedButton(
-                        onPressed:
-                            _saving || _composer.busy || _composer.corruptDraft
-                                ? null
-                                : _export,
+                        onPressed: !CreationPermissions.of(context).export ||
+                                _saving ||
+                                _composer.busy ||
+                                _composer.corruptDraft
+                            ? null
+                            : _export,
                         child: const Text('Export printable draft')),
                   ]),
                   if (_saving) const LinearProgressIndicator(),

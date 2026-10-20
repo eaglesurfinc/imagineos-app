@@ -90,3 +90,26 @@ test('runtime uses only server-side fixed Storage/Auth endpoints and hard deleti
   assert.deepEqual(JSON.parse(calls[1].init.body),{should_soft_delete:false});
   assert(calls.every(c=>c.init.method==='DELETE'&&c.init.redirect==='error'));
 });
+
+test('child approval binds the confirmed parent grant and returns a single-use code, storing only its hash',async()=>{
+  const calls=[];
+  const {handler}=fixture({manageChildren:async(p,action,hash,data)=>{
+    calls.push({p,action,hash,data});return{minutes:30,redeem_before:new Date().toISOString()};
+  }});
+  const response=await handler(request({action:'child_approve',child_id:parent.id,minutes:30}));
+  assert.equal(response.status,200);const data=(await response.json()).data;
+  assert.match(data.code,/^[a-f0-9]{32}$/);
+  assert.equal(calls[0].p.id,parent.id);assert.equal(calls[0].action,'child_approve');
+  assert.match(calls[0].hash,/^[a-f0-9]{64}$/);assert.match(calls[0].data.code_hash,/^[a-f0-9]{64}$/);
+  assert(!JSON.stringify(calls).includes(data.code));
+});
+test('child management rejects missing unlocks, invalid durations and caller-owned scope overrides',async()=>{
+  let calls=0;const {handler}=fixture({manageChildren:async()=>{calls++;return{};}});
+  assert.equal((await handler(request({action:'child_list'},''))).status,403);
+  for(const body of [{action:'child_approve',child_id:parent.id,minutes:0},
+    {action:'child_approve',child_id:parent.id,minutes:481},
+    {action:'child_list',family_id:parent.id},
+    {action:'child_settings',child_id:parent.id,minutes:30,allow_export:true,blocked:'false'}])
+    assert.equal((await handler(request(body))).status,422);
+  assert.equal(calls,0);
+});

@@ -1,3 +1,4 @@
+import '../../core/creation_permissions.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -240,7 +241,8 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
               onPressed: _editing || _deleteWhole != null ? null : _story,
               icon: const Icon(Icons.auto_stories_outlined),
               label: const Text('Plan a story page')),
-          if (_deleteWhole == null) ...[
+          if (CreationPermissions.of(context).deleteSavedWork &&
+              _deleteWhole == null) ...[
             if (widget.versions.length > 1)
               OutlinedButton.icon(
                   onPressed: _editing ? null : () => _remove(false),
@@ -253,7 +255,7 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                 onPressed: _editing ? null : () => _remove(true),
                 icon: const Icon(Icons.delete_forever),
                 label: const Text('Delete character')),
-          ] else
+          ] else if (CreationPermissions.of(context).deleteSavedWork)
             FilledButton(
                 onPressed: _editing ? null : () => _remove(_deleteWhole!),
                 child: Text(_editing ? 'Deleting…' : 'Retry deletion')),

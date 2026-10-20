@@ -10,10 +10,10 @@ const {pathToFileURL}=require('node:url');
  try {
   await b.send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
   await b.send('Page.navigate',{url:'http://127.0.0.1:8766'});await b.semantics();
-  await b.waitFor('For parents');await b.tab('For parents');await b.waitFor('Create a parent account');
+  await b.waitFor('Parent sign-in');await b.control('Parent sign-in');await b.waitFor('Create a parent account');
   await b.fill('Parent email',accounts[0].email);await b.fill('Password',accounts[0].password);
   await b.control('Sign in');await b.waitFor('Unlock parent settings');
-  await b.tab('My characters');await b.waitFor('Save an original');
+  await b.fill('Parent password',accounts[0].password);await b.control('Unlock parent settings');await b.control('Review family creations');await b.waitFor('Save an original');
   await b.control('My stories');await b.waitFor('Your characters. Your story.');
   await b.control('Start my story');await b.control('Fictional story creator');
   await b.waitFor('You are the creator.');
@@ -56,7 +56,7 @@ const {pathToFileURL}=require('node:url');
   await b.evaluate("Object.keys(localStorage).filter(k=>k.endsWith('.story-project.workspace')).forEach(k=>localStorage.removeItem(k))");
   await b.send('Page.reload',{ignoreCache:true});await b.semantics();
   await b.send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
-  await b.waitFor('Save an original');await b.control('My stories');await b.waitFor(title.trim());
+  await b.control('Parent sign-in');await b.waitFor('Unlock parent settings');await b.fill('Parent password',accounts[0].password);await b.control('Unlock parent settings');await b.control('Review family creations');await b.waitFor('Save an original');await b.control('My stories');await b.waitFor(title.trim());
   // Read story cards instead of relying on sort order alongside API fixtures.
   const open=await b.locate(`Array.from(document.querySelectorAll('[role="button"],button')).find(el=>(el.innerText||el.getAttribute('aria-label')||'').startsWith('Open story'))`);
   await b.click(open.x,open.y);await b.waitFor('You are the creator.');
@@ -68,7 +68,7 @@ const {pathToFileURL}=require('node:url');
   // No generation or external provider request belongs to this independent flow.
   assert.equal(b.requests.filter(r=>/illustration-gateway|api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com/.test(r.url)).length,0);
   await b.click(28,28);await b.waitFor('Your characters. Your story.');await b.click(28,28);
-  await b.tab('For parents');await b.control('Sign out');await b.waitFor('Create a parent account');
+  await b.click(28,28);await b.control('Sign out');await b.waitFor('Create a parent account');
   assert.deepEqual(await b.evaluate("Object.keys(localStorage).filter(k=>k.includes('imagineos.draft.v1.'))"),[]);
   await b.send('Emulation.setDeviceMetricsOverride',{width:1024,height:900,deviceScaleFactor:1,mobile:false});
   await b.send('Page.navigate',{url:pathToFileURL(path.join(artifacts,exported)).href});await b.delay(800);

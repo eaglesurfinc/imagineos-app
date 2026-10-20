@@ -1,3 +1,4 @@
+import '../../core/creation_permissions.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -217,8 +218,11 @@ class _StoryProjectScreenState extends State<StoryProjectScreen> {
     });
     final snapshot = _story;
     try {
+      final permissions = CreationPermissions.of(context);
+      await permissions.requireExport();
       await _loadImages();
       if (!mounted || !_composer.active) return;
+      await permissions.requireExport();
       final bytes = exportStoryProject(snapshot, _artwork,
           includeSceneNotes: _includeScenes);
       final saved = await widget.saveToDevice(
@@ -424,7 +428,10 @@ class _StoryProjectScreenState extends State<StoryProjectScreen> {
             label: const Text('Save story')),
         const SizedBox(height: 12),
         OutlinedButton.icon(
-            onPressed: _exporting || _loadingImages || _story.panels.isEmpty
+            onPressed: !CreationPermissions.of(context).export ||
+                    _exporting ||
+                    _loadingImages ||
+                    _story.panels.isEmpty
                 ? null
                 : _export,
             icon: const Icon(Icons.print_outlined),

@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'theme.dart';
+import 'core/creation_permissions.dart';
+import 'features/child/child_access.dart';
+import 'features/child/family_access_shell.dart';
 
 import 'features/drawing/drawing_drafts.dart';
 import 'features/story/illustration_contract.dart';
@@ -25,6 +28,7 @@ class ImagineOsApp extends StatelessWidget {
       this.characterStore,
       this.providers,
       this.parentControls,
+      this.childAccess,
       this.storyDrafts,
       this.storyProjects,
       this.storyGateway = const DisabledIllustrationGateway()});
@@ -32,6 +36,7 @@ class ImagineOsApp extends StatelessWidget {
   final CharacterStore? characterStore;
   final ProviderConnections? providers;
   final ParentControls? parentControls;
+  final ChildAccess? childAccess;
   final StoryDraftStore? storyDrafts;
   final StoryProjectStore? storyProjects;
   final IllustrationGateway storyGateway;
@@ -42,14 +47,51 @@ class ImagineOsApp extends StatelessWidget {
       title: 'ImagineOS',
       debugShowCheckedModeBanner: false,
       theme: imagineOsTheme(),
-      home: _StudioShell(
-          account: account,
-          providers: providers,
-          parentControls: parentControls,
-          storyDrafts: storyDrafts,
-          storyProjects: storyProjects,
-          characterStore: characterStore,
-          storyGateway: storyGateway),
+      builder: (context, child) => childAccess == null
+          ? child!
+          : ListenableBuilder(
+              listenable: childAccess!,
+              builder: (context, _) => CreationPermissions(
+                  manageProfiles: false,
+                  deleteSavedWork: !childAccess!.childMode,
+                  export: !childAccess!.childMode ||
+                      (childAccess!.active &&
+                          !childAccess!.suspended &&
+                          childAccess!.session!.allowExport),
+                  authorizeExport: childAccess!.childMode
+                      ? childAccess!.authorizeExport
+                      : null,
+                  child: Stack(children: [
+                    Offstage(offstage: childAccess!.suspended, child: child!),
+                    if (childAccess!.suspended)
+                      const Positioned.fill(
+                          child: ColoredBox(
+                              color: Color(0xfffffbf2),
+                              child: Center(
+                                  child: Text(
+                                      'Checking parent-approved session…',
+                                      textDirection: TextDirection.ltr)))),
+                  ]))),
+      home: childAccess != null &&
+              account != null &&
+              parentControls != null &&
+              characterStore != null
+          ? FamilyAccessShell(
+              childAccess: childAccess!,
+              account: account!,
+              controls: parentControls!,
+              characters: characterStore!,
+              providers: providers,
+              stories: storyProjects,
+              pages: storyDrafts)
+          : _StudioShell(
+              account: account,
+              providers: providers,
+              parentControls: parentControls,
+              storyDrafts: storyDrafts,
+              storyProjects: storyProjects,
+              characterStore: characterStore,
+              storyGateway: storyGateway),
     );
   }
 }

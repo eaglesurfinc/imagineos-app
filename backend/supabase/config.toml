@@ -429,3 +429,10 @@ entrypoint = "./functions/parent-providers/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/parent-controls/index.ts"
+
+[functions.child-access]
+enabled = true
+# This endpoint authenticates one-time approvals / child capabilities itself.
+# A parent Supabase JWT alone never authorizes a child operation.
+verify_jwt = false
+entrypoint = "./functions/child-access/index.ts"

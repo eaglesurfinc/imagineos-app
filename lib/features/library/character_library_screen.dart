@@ -1,3 +1,4 @@
+import '../../core/creation_permissions.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -63,10 +64,13 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
 
   @override
   void dispose() {
+    _formCheckpoint?.cancel();
+    // A timed session can close this form between debounce ticks. Preserve its
+    // final child-scoped working copy; generation fencing still wins on sign-out.
+    if (_file != null && _studioKey != null) unawaited(_cacheForm());
     _nickname.dispose();
     _name.dispose();
     _scroll.dispose();
-    _formCheckpoint?.cancel();
     super.dispose();
   }
 
@@ -379,36 +383,37 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
                     ? null
                     : (value) => setState(() => _childId = value),
               ),
-            ExpansionTile(
-              title: Text(library.creators.isEmpty
-                  ? 'Add a creator nickname'
-                  : 'Add another creator'),
-              initiallyExpanded: library.creators.isEmpty,
-              children: [
-                TextField(
-                    controller: _nickname,
-                    maxLength: 40,
-                    enabled: !_busy,
-                    decoration:
-                        const InputDecoration(labelText: 'Creator nickname')),
-                OutlinedButton(
-                    onPressed: _busy
-                        ? null
-                        : () {
-                            if (_nickname.text.trim().isEmpty) {
-                              setState(() => _message =
-                                  'Enter a nickname. No child email is needed.');
-                              return;
-                            }
-                            _run(() async {
-                              await widget.store.addCreator(_nickname.text);
-                              _nickname.clear();
-                              await _reload();
-                            }, 'Creator added.');
-                          },
-                    child: const Text('Add creator')),
-              ],
-            ),
+            if (CreationPermissions.of(context).manageProfiles)
+              ExpansionTile(
+                title: Text(library.creators.isEmpty
+                    ? 'Add a creator nickname'
+                    : 'Add another creator'),
+                initiallyExpanded: library.creators.isEmpty,
+                children: [
+                  TextField(
+                      controller: _nickname,
+                      maxLength: 40,
+                      enabled: !_busy,
+                      decoration:
+                          const InputDecoration(labelText: 'Creator nickname')),
+                  OutlinedButton(
+                      onPressed: _busy
+                          ? null
+                          : () {
+                              if (_nickname.text.trim().isEmpty) {
+                                setState(() => _message =
+                                    'Enter a nickname. No child email is needed.');
+                                return;
+                              }
+                              _run(() async {
+                                await widget.store.addCreator(_nickname.text);
+                                _nickname.clear();
+                                await _reload();
+                              }, 'Creator added.');
+                            },
+                      child: const Text('Add creator')),
+                ],
+              ),
             if (_childId != null) ...[
               const SizedBox(height: 16),
               Text(_updating == null ? 'Save an original' : 'Add a new version',
@@ -594,17 +599,20 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
                                             await _reload();
                                           }, 'Original saved.'),
                                   child: const Text('Finish save')),
-                              TextButton(
-                                  onPressed: _busy
-                                      ? null
-                                      : () => _run(() async {
-                                            await widget.store.discard(pending);
-                                            if (_draft?.requestId ==
-                                                    pending.requestId &&
-                                                mounted) setState(_clearForm);
-                                            await _reload();
-                                          }, 'Unfinished upload discarded.'),
-                                  child: const Text('Discard unfinished')),
+                              if (CreationPermissions.of(context)
+                                  .deleteSavedWork)
+                                TextButton(
+                                    onPressed: _busy
+                                        ? null
+                                        : () => _run(() async {
+                                              await widget.store
+                                                  .discard(pending);
+                                              if (_draft?.requestId ==
+                                                      pending.requestId &&
+                                                  mounted) setState(_clearForm);
+                                              await _reload();
+                                            }, 'Unfinished upload discarded.'),
+                                    child: const Text('Discard unfinished')),
                             ]),
                           ]))),
           ],

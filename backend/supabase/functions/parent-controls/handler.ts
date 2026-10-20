@@ -1,34 +1,18 @@
 import { parentAuth, type Parent } from "../_shared/parent_auth.ts";
+import {digest as hash,readJson as readBody,uuid} from "../_shared/http.ts";
 
 type Dependencies = {
   authenticate(authorization: string): Promise<Parent | null>;
   confirmPassword(parent: Parent, password: string): Promise<boolean>;
   manage(parent: Parent, action: string, hash?: string): Promise<unknown>;
+  manageChildren?(parent:Parent,action:string,hash:string,data:Record<string,unknown>):Promise<unknown>;
   removeFiles(paths: string[]): Promise<void>;
   removeAccount(parent: Parent): Promise<void>;
 };
 const origins = new Set(["https://imagineos-app.vercel.app", "http://localhost:8766", "http://127.0.0.1:8766"]);
 const counts = ["child_profiles", "characters", "versions", "original_files", "page_drafts", "stories", "provider_connections"];
-async function hash(token: string) {
-  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
-  return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, "0")).join("");
-}
-async function readBody(request: Request) {
-  if (request.headers.get("content-type")?.split(";")[0].trim() !== "application/json" || !request.body) throw Error();
-  const reader = request.body.getReader();
-  let size = 0, result = "";
-  const decoder = new TextDecoder("utf-8", { fatal: true });
-  try {
-    while (true) {
-      const {done, value} = await reader.read();
-      if (done) break;
-      size += value.length;
-      if (size > 8192) { await reader.cancel(); throw Error(); }
-      result += decoder.decode(value, {stream: true});
-    }
-    return JSON.parse(result + decoder.decode());
-  } finally { reader.releaseLock(); }
-}
+const childActions:Record<string,string[]>={child_list:[],child_add:["nickname"],
+  child_approve:["child_id","minutes"],child_settings:["child_id","minutes","allow_export","blocked"],child_end:["session_id"]};
 export function createHandler(deps: Dependencies) {
   return async (request: Request): Promise<Response> => {
     const headers = new Headers({"content-type":"application/json", "cache-control":"no-store", "vary":"Origin"});
@@ -50,13 +34,20 @@ export function createHandler(deps: Dependencies) {
     try {
       value = await readBody(request);
       if (!value || typeof value !== "object" || Array.isArray(value)) throw Error();
-      const allowed = value.action === "unlock" ? ["action", "password"] :
+      const allowed = childActions[value.action] ? ["action",...childActions[value.action]] : value.action === "unlock" ? ["action", "password"] :
         value.action === "start_delete" ? ["action", "password", "confirmation"] :
         ["overview", "lock", "continue_delete"].includes(value.action) ? ["action"] : [];
       if (!allowed.length || Object.keys(value).length !== allowed.length || !allowed.every(k=>Object.hasOwn(value,k))) throw Error();
       if (["unlock", "start_delete"].includes(value.action) &&
         (typeof value.password !== "string" || !value.password.length || value.password.length>1024)) throw Error();
       if (value.action === "start_delete" && value.confirmation !== "DELETE MY FAMILY") throw Error();
+      if (childActions[value.action]) {
+        if ("child_id" in value && (typeof value.child_id!=="string" || !uuid.test(value.child_id))) throw Error();
+        if ("session_id" in value && (typeof value.session_id!=="string" || !uuid.test(value.session_id))) throw Error();
+        if ("minutes" in value && (!Number.isInteger(value.minutes)||value.minutes<1||value.minutes>480)) throw Error();
+        if (value.action==="child_add" && (typeof value.nickname!=="string"||!value.nickname.trim()||value.nickname.length>40)) throw Error();
+        if (value.action==="child_settings" && (typeof value.blocked!=="boolean"||typeof value.allow_export!=="boolean")) throw Error();
+      }
     } catch { return respond(422, "INVALID_REQUEST"); }
     try {
       const parent = await deps.authenticate(authorization);
@@ -71,6 +62,18 @@ export function createHandler(deps: Dependencies) {
       const token = request.headers.get("x-imagineos-parent-grant") ?? "";
       if (!/^[0-9a-f]{64}$/.test(token)) return respond(403,"PARENT_LOCKED");
       const digest = await hash(token);
+      if (childActions[value.action]) {
+        if (!deps.manageChildren) throw Error();
+        const {action,...payload}=value;
+        let code:string|undefined;
+        if (action==="child_approve") {
+          code=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,"0")).join("");
+          payload.code_hash=await hash(code);
+        }
+        const data=await deps.manageChildren(parent,action,digest,payload);
+        if(data===null)return respond(429,"TOO_MANY_ATTEMPTS");
+        return respond(200,"OK",code?{...(data as Record<string,unknown>),code}:data);
+      }
       if (value.action === "lock") {
         await deps.manage(parent,"lock",digest);
         return respond(200,"OK");
@@ -120,6 +123,11 @@ export function runtimeDependencies(url: string, publicKey: string, serverKey: s
     async manage(parent,action,digest) {
       const result = await call("/rest/v1/rpc/parent_controls",{p_parent_id:parent.id,
         p_session_id:parent.sessionId,p_action:action,p_token_hash:digest??null});
+      return result.json();
+    },
+    async manageChildren(parent,action,digest,data) {
+      const result=await call("/rest/v1/rpc/manage_child_access",{p_parent:parent.id,p_session:parent.sessionId,
+        p_grant_hash:digest,p_action:action,p_data:data});
       return result.json();
     },
     async removeFiles(paths) {

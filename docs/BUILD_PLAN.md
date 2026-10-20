@@ -114,19 +114,20 @@ Gate: the complete character → scene → accepted page → save/reopen → exp
 
 ## Stage 8 — Protected parent controls and reliability
 
-- [ ] Separate parent sign-in from child entry for shared and separate devices. Parent-authorized, revocable child sessions must enforce child ownership and permissions on the server; move profile administration into parent controls. Verify sibling/family isolation and that child credentials cannot manage accounts, providers or parental permissions.
+- [x] Separate parent sign-in from child entry for shared and separate devices. Parent-authorized, revocable child sessions must enforce child ownership and permissions on the server; move profile administration into parent controls. Verify sibling/family isolation and that child credentials cannot manage accounts, providers or parental permissions.
+- [x] Require a fresh parent approval for every child sign-in, with the parent choosing its duration. Automatically close/block access at expiry or revocation; activity, retries, reload and a previously used device must never renew an approval.
 - [ ] Implement the chosen per-child guardrails, with clear defaults and immediate revocation. Include AI authorization/spend limits, exports and destructive actions; preserve unconditional creator and safety rules. Verify direct API/Storage calls as well as the interface.
 - [x] Add protected parent settings and accurate provider/storage/privacy explanations.
 - [ ] Implement the approved consent, data visibility, retention, and deletion flows.
-- [ ] Test authorization boundaries for parent controls, account deletion/session effects, private assets, and exports.
+- [x] Test authorization boundaries for parent controls, account deletion/session effects, private assets, and exports.
 - [ ] Exercise backup/recovery, failed saves, logging without raw child content, and operational cost limits.
 
 Build child access in this order:
 1. Keep parent account/provider/privacy administration behind the parent lock. Add parent-only child/profile and approved-device management.
 2. Record per-child permissions on the server: AI off by default, explicit parent spending authorization, parent-controlled exports and permanent deletion restricted to parents. Safety and creator rules always apply.
-3. Add parent-approved, expiring, single-use device pairing and a restricted child identity/session. Bind it to one profile and an approved device, with expiry, rate limits and parent reset/revocation. A short PIN may unlock an already approved device; it must never be the only remote access credential. Do not persist a parent session in child mode.
-4. Add clear Parent sign-in and Child entry screens. Shared devices choose among parent-approved profiles; a separate child device pairs through parent approval. Children use nicknames/avatars, without email or the parent password.
-5. Preserve existing child IDs and all artwork/story references during migration. Test sibling/family isolation, direct API/Storage/exports, revoked/expired sessions, PIN attempts, device loss, offline drafts and parent recovery before enabling real-family use.
+3. Require a new single-use parent approval for each sign-in and bind the resulting restricted session to one child, its secret and a server deadline. A remembered device, PIN, activity or retry cannot replace fresh approval or extend access. Keep parent and child session secrets out of child device persistence; support immediate parent revocation.
+4. Add clear Parent sign-in and Child entry screens. On a shared device, the parent approves the chosen profile and signs out before handoff. A separate child device redeems a fresh approval from its parent. Children use nicknames without email or the parent password.
+5. Preserve existing child IDs and all artwork/story references during migration. Test sibling/family isolation, direct API/Storage/exports, used/expired/revoked approvals, device loss, offline drafts and parent recovery before enabling real-family use. The initial code-based flow does not use child PINs or hardware fingerprinting.
 
 Gate: parent controls are actually protected and privacy/recovery behavior is verified end to end.
 

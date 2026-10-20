@@ -111,6 +111,30 @@ class ParentControls extends ChangeNotifier {
   Future<FamilyDataOverview> overview() async =>
       FamilyDataOverview(await _protected({'action': 'overview'}));
 
+  Future<Map<String, dynamic>> children() =>
+      _protected({'action': 'child_list'});
+  Future<void> addChild(String nickname) async {
+    await _protected({'action': 'child_add', 'nickname': nickname});
+  }
+
+  Future<void> setChildAccess(
+      String childId, int minutes, bool allowExport, bool blocked) async {
+    await _protected({
+      'action': 'child_settings',
+      'child_id': childId,
+      'minutes': minutes,
+      'allow_export': allowExport,
+      'blocked': blocked
+    });
+  }
+
+  Future<Map<String, dynamic>> approveChild(String childId, int minutes) =>
+      _protected(
+          {'action': 'child_approve', 'child_id': childId, 'minutes': minutes});
+  Future<void> endChildSession(String sessionId) async {
+    await _protected({'action': 'child_end', 'session_id': sessionId});
+  }
+
   Future<bool> deleteAccount({String? password, String? confirmation}) async {
     final result = await _protected(password == null
         ? {'action': 'continue_delete'}
@@ -159,7 +183,7 @@ class SupabaseParentControls extends ParentControls {
               'PARENT_LOCKED' =>
                 'Parent settings are locked. Unlock them again.',
               'TOO_MANY_ATTEMPTS' =>
-                'Too many password attempts. Try again in an hour.',
+                'Too many parent requests. Try again in an hour.',
               'AUTH_REQUIRED' => 'Your session has ended. Sign in again.',
               _ =>
                 'Could not confirm this request. Reopen parent settings to check before retrying.',

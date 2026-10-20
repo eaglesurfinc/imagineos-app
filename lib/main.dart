@@ -5,6 +5,7 @@ import 'app.dart';
 import 'supabase_config.dart';
 import 'features/parent/parent_account.dart';
 import 'features/parent/parent_controls.dart';
+import 'features/child/child_access.dart';
 import 'features/parent/provider_connections.dart';
 import 'features/library/character_store.dart';
 import 'features/story/illustration_contract.dart';
@@ -23,6 +24,11 @@ Future<void> main() async {
       );
     }
     runApp(ImagineOsApp(
+      childAccess: config == null
+          ? null
+          : supabaseChildAccess(SupabaseClient(
+              config.url, config.publishableKey,
+              authOptions: const AuthClientOptions(autoRefreshToken: false))),
       parentControls: config == null
           ? null
           : SupabaseParentControls(Supabase.instance.client),
