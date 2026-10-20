@@ -1,0 +1,43 @@
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const {browserSession}=require('./support/browser_session.cjs');
+(async()=>{
+  const accounts=JSON.parse(fs.readFileSync('config/auth-test.local.json','utf8'));
+  assert(accounts.every(a=>a.email.endsWith('@example.invalid')));
+  const artifacts=path.resolve('build/parent-controls-browser',Date.now().toString(36));
+  const b=await browserSession(artifacts);
+  try {
+    await b.send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
+    await b.send('Page.navigate',{url:'http://127.0.0.1:8766'});await b.semantics();
+    await b.tab('For parents');await b.waitFor('Create a parent account');
+    await b.fill('Parent email',accounts[0].email);await b.fill('Password',accounts[0].password);
+    await b.control('Sign in');await b.waitFor('Unlock parent settings');
+    assert(!(await b.body()).includes('Your family data'));
+    await b.snapshot('locked-phone');
+    await b.fill('Parent password',accounts[0].password);await b.control('Unlock parent settings');
+    await b.waitFor('Drawing versions: 2');await b.snapshot('family-overview-phone');
+    await b.control('AI provider accounts');await b.waitFor('OpenAI');await b.waitFor('Gemini');
+    await b.waitFor('Claude');assert(!(await b.body()).includes('Sign in with ChatGPT'));
+    await b.click(28,28);await b.waitFor('Your family data');
+    await b.tab('My characters');await b.tab('For parents');await b.waitFor('Unlock parent settings');
+    assert(!(await b.body()).includes('Your family data'));
+    await b.fill('Parent password',accounts[0].password);await b.control('Unlock parent settings');
+    await b.waitFor('Drawing versions: 2');
+    await b.send('Page.reload',{ignoreCache:true});await b.semantics();
+    await b.tab('For parents');await b.waitFor('Unlock parent settings');
+    await b.send('Emulation.setDeviceMetricsOverride',{width:1024,height:900,deviceScaleFactor:1,mobile:false});
+    await b.fill('Parent password',accounts[0].password);await b.control('Unlock parent settings');
+    await b.waitFor('Your family data');await b.snapshot('family-overview-tablet');
+    await b.control('Delete my account');await b.waitFor('Permanently delete the entire family?');
+    await b.control('Keep family account');await b.waitFor('Delete my account');
+    await b.control('Delete my account');await b.waitFor('Permanently delete the entire family?');
+    await b.fill('Type DELETE MY FAMILY','DELETE MY FAMILY');
+    await b.fill('Confirm parent password',accounts[0].password);
+    await b.snapshot('confirmed-family-deletion');
+    await b.control('Permanently delete family');await b.waitFor('Create a parent account');
+    assert.deepEqual(await b.evaluate("Object.keys(localStorage).filter(k=>k.includes('imagineos.draft.v1.'))"),[]);
+    await b.snapshot('deleted-signed-out');
+    assert.equal(b.requests.filter(r=>/api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com|illustration-gateway/.test(r.url)).length,0);
+    assert.deepEqual(b.errors,[]);
+    console.log('PASS: configured release phone/tablet parent lock, unlock, provider catalog, tab/reload relock, deletion cancellation and complete family removal/sign-out. '+artifacts);
+  } finally {await b.close();}
+})().catch(error=>{console.error(error.message);process.exitCode=1;});

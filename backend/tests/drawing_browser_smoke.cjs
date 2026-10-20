@@ -133,7 +133,7 @@ function photoFixture() {
     await send('Page.navigate',{url:'http://127.0.0.1:8766'});await activateSemantics();
     await click(292,800);await waitFor('Create a parent account');
     await fill('Parent email',accounts[0].email);await fill('Password',accounts[0].password);
-    await button('Sign in');await waitFor('Your family is ready.');
+    await button('Sign in');await waitFor('Unlock parent settings');
     await click(98,800);await waitFor('Save an original');
     await button('Draw a character');await waitFor('Drawing studio');
     console.log('Checking phone drawing and editable reload recovery.');

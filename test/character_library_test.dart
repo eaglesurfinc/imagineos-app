@@ -122,9 +122,6 @@ class TestAccount extends ParentAccount {
     currentEmail = null;
     notifyListeners();
   }
-
-  @override
-  Future<FamilySummary> loadFamily() async => const FamilySummary(1);
 }
 
 Future<void> showLibrary(WidgetTester tester, FakeStore store,

@@ -1,3 +1,4 @@
+import {parentAuth, type Parent} from "../_shared/parent_auth.ts";
 // Connection management only. This module cannot generate images or spend AI
 // credits. Never log incoming bodies, credentials, passwords or upstream errors.
 export const providers = [
@@ -15,7 +16,6 @@ export const providers = [
     billing: "Uses the parent's Gemini API project and its eligible quota or credits." },
 ] as const;
 
-type Parent = { id: string; email: string; sessionId: string };
 type Connection = { provider: string; connected_at: string };
 export type Dependencies = {
   authenticate(authorization: string): Promise<Parent | null>;
@@ -25,7 +25,6 @@ export type Dependencies = {
 };
 const origins = new Set(["https://imagineos-app.vercel.app", "http://localhost:8766", "http://127.0.0.1:8766"]);
 const ids = new Set<string>(providers.map((p) => p.id));
-const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function validSecret(provider: string, value: unknown): value is string {
   return typeof value === "string" && value.length >= 16 && value.length <= 2048 &&
     /^[\x21-\x7e]+$/.test(value) &&
@@ -105,17 +104,7 @@ export function runtimeDependencies(url: string, publicKey: string, serverKey: s
   const call = (target: string, init: RequestInit) => fetcher(target,
     { ...init, redirect: "error", signal: AbortSignal.timeout(8000) });
   return {
-    async authenticate(authorization) {
-      const result = await call(`${url}/auth/v1/user`, { headers: { apikey: publicKey, authorization } });
-      if (result.status === 401 || result.status === 403) return null;
-      if (!result.ok) throw Error();
-      const user = await result.json();
-      // Decode only AFTER Auth validates the signed token. The database checks
-      // that this specific session still exists before any credential operation.
-      const payload = JSON.parse(atob(authorization.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-      if (!uuid.test(user.id) || !uuid.test(payload.session_id) || user.is_anonymous || !user.email) return null;
-      return { id: user.id, email: user.email, sessionId: payload.session_id };
-    },
+    ...parentAuth(url, publicKey, fetcher),
     async manage(parent, action, provider, secret) {
       if (!serverKey) throw Error();
       const result = await call(`${url}/rest/v1/rpc/manage_parent_provider`, {
@@ -125,22 +114,6 @@ export function runtimeDependencies(url: string, publicKey: string, serverKey: s
       });
       if (!result.ok) throw Error();
       return result.json();
-    },
-    async confirmPassword(parent, password) {
-      const result = await call(`${url}/auth/v1/token?grant_type=password`, {
-        method: "POST", headers: { apikey: publicKey, "content-type": "application/json" },
-        body: JSON.stringify({ email: parent.email, password }),
-      });
-      if (result.status === 400 || result.status === 401) return false;
-      if (!result.ok) throw Error();
-      const session = await result.json();
-      // This short-lived confirmation session never reaches the browser and
-      // must be revoked even if its identity unexpectedly differs.
-      const signedOut = await call(`${url}/auth/v1/logout?scope=local`, {
-        method: "POST", headers: { apikey: publicKey, authorization: `Bearer ${session.access_token}` },
-      });
-      if (!signedOut.ok) throw Error();
-      return session.user?.id === parent.id;
     },
     async verifyKey(provider, secret) {
       // Read-only model discovery. No prompt, drawing, image or generation call.

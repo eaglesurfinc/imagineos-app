@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'supabase_config.dart';
 import 'features/parent/parent_account.dart';
+import 'features/parent/parent_controls.dart';
 import 'features/parent/provider_connections.dart';
 import 'features/library/character_store.dart';
 import 'features/story/illustration_contract.dart';
@@ -22,6 +23,9 @@ Future<void> main() async {
       );
     }
     runApp(ImagineOsApp(
+      parentControls: config == null
+          ? null
+          : SupabaseParentControls(Supabase.instance.client),
       storyProjects: config == null
           ? null
           : SupabaseStoryProjectStore(Supabase.instance.client),

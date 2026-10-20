@@ -12,7 +12,7 @@ const {pathToFileURL}=require('node:url');
   await b.send('Page.navigate',{url:'http://127.0.0.1:8766'});await b.semantics();
   await b.waitFor('For parents');await b.tab('For parents');await b.waitFor('Create a parent account');
   await b.fill('Parent email',accounts[0].email);await b.fill('Password',accounts[0].password);
-  await b.control('Sign in');await b.waitFor('Your family is ready.');
+  await b.control('Sign in');await b.waitFor('Unlock parent settings');
   await b.tab('My characters');await b.waitFor('Save an original');
   await b.control('My stories');await b.waitFor('Your characters. Your story.');
   await b.control('Start my story');await b.control('Fictional story creator');

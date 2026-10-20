@@ -3,11 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class FamilySummary {
-  const FamilySummary(this.childCount);
-  final int childCount;
-}
-
 abstract class ParentAccount extends ChangeNotifier {
   String? get email;
   bool get recoveringPassword;
@@ -16,7 +11,6 @@ abstract class ParentAccount extends ChangeNotifier {
   Future<void> resetPassword(String email);
   Future<void> updatePassword(String password);
   Future<void> signOut();
-  Future<FamilySummary> loadFamily();
 }
 
 class SupabaseParentAccount extends ParentAccount {
@@ -65,17 +59,6 @@ class SupabaseParentAccount extends ParentAccount {
 
   @override
   Future<void> signOut() => client.auth.signOut();
-
-  @override
-  Future<FamilySummary> loadFamily() async {
-    // RLS, rather than a client-supplied owner filter, isolates these requests.
-    final family = await client.from('families').select('id').single();
-    final children = await client
-        .from('child_profiles')
-        .select('id')
-        .eq('family_id', family['id'] as String);
-    return FamilySummary(children.length);
-  }
 
   @override
   void dispose() {

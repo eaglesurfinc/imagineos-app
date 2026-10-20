@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 
 import 'parent_account.dart';
 import 'provider_connections.dart';
-import 'provider_connections_screen.dart';
+import 'parent_controls.dart';
+import 'parent_settings_panel.dart';
 
 class ParentAccessScreen extends StatefulWidget {
-  const ParentAccessScreen({super.key, required this.account, this.providers});
+  const ParentAccessScreen(
+      {super.key, required this.account, this.providers, this.controls});
   final ParentAccount account;
   final ProviderConnections? providers;
+  final ParentControls? controls;
 
   @override
   State<ParentAccessScreen> createState() => _ParentAccessScreenState();
@@ -21,7 +24,6 @@ class _ParentAccessScreenState extends State<ParentAccessScreen> {
   bool _busy = false;
   String? _message;
   String? _loadedEmail;
-  Future<FamilySummary>? _family;
 
   @override
   void initState() {
@@ -33,8 +35,8 @@ class _ParentAccessScreenState extends State<ParentAccessScreen> {
   void _syncSession() {
     final email = widget.account.email;
     if (email != _loadedEmail) {
+      widget.controls?.lock();
       _loadedEmail = email;
-      _family = email == null ? null : widget.account.loadFamily();
       _password.clear();
       _message = null;
     }
@@ -42,15 +44,6 @@ class _ParentAccessScreenState extends State<ParentAccessScreen> {
 
   void _accountChanged() {
     if (mounted) setState(_syncSession);
-  }
-
-  @override
-  void didUpdateWidget(covariant ParentAccessScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Returning from the library must reflect newly created creator profiles.
-    if (widget.account.email != null && !widget.account.recoveringPassword) {
-      _family = widget.account.loadFamily();
-    }
   }
 
   @override
@@ -110,49 +103,14 @@ class _ParentAccessScreenState extends State<ParentAccessScreen> {
         const Text('Manage your family account. Children remain the creators.'),
         const SizedBox(height: 16),
         if (account.email != null && !recovery) ...[
-          Text('Signed in as ${account.email}'),
-          const SizedBox(height: 16),
-          FutureBuilder<FamilySummary>(
-            key: ValueKey(_loadedEmail),
-            future: _family,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Could not load your family. Please try again.'),
-                    TextButton(
-                      onPressed: () => setState(() {
-                        _family = account.loadFamily();
-                      }),
-                      child: const Text('Retry family'),
-                    ),
-                  ],
-                );
-              }
-              if (!snapshot.hasData) {
-                return const Text('Loading your family…');
-              }
-              return Text(
-                  'Your family is ready. Child profiles: ${snapshot.data!.childCount}.');
-            },
-          ),
-          const SizedBox(height: 16),
-          if (widget.providers != null) ...[
-            FilledButton.icon(
-                onPressed: _busy
-                    ? null
-                    : () => Navigator.of(context).push(MaterialPageRoute<void>(
-                        builder: (_) => ProviderConnectionsScreen(
-                            connections: widget.providers!))),
-                icon: const Icon(Icons.auto_awesome),
-                label: const Text('AI provider accounts')),
-            const SizedBox(height: 16),
-          ],
-          OutlinedButton(
-            onPressed: _busy ? null : () => _run(account.signOut, null),
-            child: const Text('Sign out'),
-          ),
+          if (widget.controls != null)
+            ParentSettingsPanel(
+                account: account,
+                controls: widget.controls!,
+                providers: widget.providers)
+          else
+            const Text(
+                'Protected parent settings are unavailable in this preview.'),
         ] else
           AutofillGroup(
             child: Form(

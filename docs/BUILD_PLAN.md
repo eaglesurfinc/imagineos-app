@@ -114,10 +114,19 @@ Gate: the complete character → scene → accepted page → save/reopen → exp
 
 ## Stage 8 — Protected parent controls and reliability
 
-- [ ] Add protected parent settings and accurate provider/storage/privacy explanations.
+- [ ] Separate parent sign-in from child entry for shared and separate devices. Parent-authorized, revocable child sessions must enforce child ownership and permissions on the server; move profile administration into parent controls. Verify sibling/family isolation and that child credentials cannot manage accounts, providers or parental permissions.
+- [ ] Implement the chosen per-child guardrails, with clear defaults and immediate revocation. Include AI authorization/spend limits, exports and destructive actions; preserve unconditional creator and safety rules. Verify direct API/Storage calls as well as the interface.
+- [x] Add protected parent settings and accurate provider/storage/privacy explanations.
 - [ ] Implement the approved consent, data visibility, retention, and deletion flows.
 - [ ] Test authorization boundaries for parent controls, account deletion/session effects, private assets, and exports.
 - [ ] Exercise backup/recovery, failed saves, logging without raw child content, and operational cost limits.
+
+Build child access in this order:
+1. Keep parent account/provider/privacy administration behind the parent lock. Add parent-only child/profile and approved-device management.
+2. Record per-child permissions on the server: AI off by default, explicit parent spending authorization, parent-controlled exports and permanent deletion restricted to parents. Safety and creator rules always apply.
+3. Add parent-approved, expiring, single-use device pairing and a restricted child identity/session. Bind it to one profile and an approved device, with expiry, rate limits and parent reset/revocation. A short PIN may unlock an already approved device; it must never be the only remote access credential. Do not persist a parent session in child mode.
+4. Add clear Parent sign-in and Child entry screens. Shared devices choose among parent-approved profiles; a separate child device pairs through parent approval. Children use nicknames/avatars, without email or the parent password.
+5. Preserve existing child IDs and all artwork/story references during migration. Test sibling/family isolation, direct API/Storage/exports, revoked/expired sessions, PIN attempts, device loss, offline drafts and parent recovery before enabling real-family use.
 
 Gate: parent controls are actually protected and privacy/recovery behavior is verified end to end.
 

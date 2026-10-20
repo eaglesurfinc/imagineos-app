@@ -85,7 +85,7 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
     await send('Page.navigate',{url:'http://127.0.0.1:8766'});await activateSemantics();
     await click(292,800);await waitFor('Create a parent account');
     await fill('Parent email',accounts[0].email);await fill('Password',accounts[0].password);
-    await button('Sign in');await waitFor('Your family is ready.');
+    await button('Sign in');await waitFor('Unlock parent settings');
     await click(98,800);await waitFor('Save an original');
     await fill('Character name',characterName);await choose(originalPath);await button('Save character');
     for(let i=0;i<40;i++){if((await body()).includes('Original saved. You can reopen it below.'))break;await wheel(1500);}

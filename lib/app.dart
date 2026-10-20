@@ -15,6 +15,7 @@ import 'features/library/character_library_screen.dart';
 import 'features/parent/parent_information_screen.dart';
 import 'features/parent/parent_access_screen.dart';
 import 'features/parent/parent_account.dart';
+import 'features/parent/parent_controls.dart';
 import 'features/parent/provider_connections.dart';
 
 class ImagineOsApp extends StatelessWidget {
@@ -23,12 +24,14 @@ class ImagineOsApp extends StatelessWidget {
       this.account,
       this.characterStore,
       this.providers,
+      this.parentControls,
       this.storyDrafts,
       this.storyProjects,
       this.storyGateway = const DisabledIllustrationGateway()});
   final ParentAccount? account;
   final CharacterStore? characterStore;
   final ProviderConnections? providers;
+  final ParentControls? parentControls;
   final StoryDraftStore? storyDrafts;
   final StoryProjectStore? storyProjects;
   final IllustrationGateway storyGateway;
@@ -42,6 +45,7 @@ class ImagineOsApp extends StatelessWidget {
       home: _StudioShell(
           account: account,
           providers: providers,
+          parentControls: parentControls,
           storyDrafts: storyDrafts,
           storyProjects: storyProjects,
           characterStore: characterStore,
@@ -55,12 +59,14 @@ class _StudioShell extends StatefulWidget {
       {this.account,
       this.characterStore,
       this.providers,
+      this.parentControls,
       this.storyDrafts,
       this.storyProjects,
       required this.storyGateway});
   final ParentAccount? account;
   final CharacterStore? characterStore;
   final ProviderConnections? providers;
+  final ParentControls? parentControls;
   final StoryDraftStore? storyDrafts;
   final StoryProjectStore? storyProjects;
   final IllustrationGateway storyGateway;
@@ -82,6 +88,7 @@ class _StudioShellState extends State<_StudioShell> {
   }
 
   void _onAccountChanged() {
+    widget.parentControls?.lock();
     if (mounted && _sessionEmail != widget.account?.email) {
       unawaited(
           DrawingDraftStore.shared.invalidate().catchError((Object _) {}));
@@ -122,7 +129,9 @@ class _StudioShellState extends State<_StudioShell> {
               const LibraryScreen(),
             if (widget.account != null)
               ParentAccessScreen(
-                  account: widget.account!, providers: widget.providers)
+                  account: widget.account!,
+                  providers: widget.providers,
+                  controls: widget.parentControls)
             else
               const ParentInformationScreen(),
           ],
@@ -131,6 +140,7 @@ class _StudioShellState extends State<_StudioShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
+          if (index != _selectedIndex) widget.parentControls?.lock();
           setState(() => _selectedIndex = index);
         },
         destinations: const [
