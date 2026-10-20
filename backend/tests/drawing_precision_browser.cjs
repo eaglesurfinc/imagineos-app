@@ -40,11 +40,12 @@ function photoFixture(noisy=false) {
     assert(pages,'Browser did not start');
     ws=new WebSocket(pages.find(p=>p.type==='page').webSocketDebuggerUrl);
     await new Promise(resolve=>ws.addEventListener('open',resolve,{once:true}));
-    let sequence=0;const pending=new Map(),errors=[];
+    let sequence=0;const pending=new Map(),errors=[],privateRequests=[];
     ws.addEventListener('message',event=>{
       const message=JSON.parse(event.data);
       if(message.id){const request=pending.get(message.id);pending.delete(message.id);message.error?request.reject(message.error):request.resolve(message.result);}
       else if(message.method==='Runtime.exceptionThrown')errors.push(message.params);
+      else if(message.method==='Network.requestWillBeSent' && /supabase\.co|api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com/.test(message.params.request.url))privateRequests.push(message.params.request.url);
     });
     const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++sequence;pending.set(id,{resolve,reject});ws.send(JSON.stringify({id,method,params}));});
     const evaluate=async expression=>{const result=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(result.exceptionDetails)throw Error(JSON.stringify(result.exceptionDetails));return result.result.value;};
@@ -68,8 +69,13 @@ function photoFixture(noisy=false) {
     const snapshot=async label=>{const r=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(downloads,label+'.png'),Buffer.from(r.data,'base64'));};
     const canvas=async()=>{
       await wheel(-10000);
-      const rect=await evaluate(`(()=>{const el=Array.from(document.querySelectorAll('flt-semantics')).find(el=>el.firstElementChild?.tagName==='SPAN'&&el.textContent.startsWith('Drawing canvas.'));if(!el)return null;const r=el.getBoundingClientRect();const size=Math.min(r.width-24,r.height-24);return{x:r.x+(r.width-size)/2,y:r.y+(r.height-size)/2,width:size,height:size};})()`);
-      assert(rect&&rect.width>0,'Missing canvas: '+await body());return rect;
+      const rect=await evaluate(`(()=>{const el=Array.from(document.querySelectorAll('flt-semantics')).find(el=>el.firstElementChild?.tagName==='SPAN'&&el.textContent.startsWith('Drawing canvas.'));if(!el)return null;const r=el.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};})()`);
+      assert(rect&&rect.width>0,'Missing canvas: '+await body());
+      // Flutter merges the canvas semantics into its layout boundary. Match
+      // DrawingStudio's centered, padded artboard inside that boundary.
+      const d=await draft(),ratio=d.width/d.height;
+      const width=Math.min(rect.width-24,(rect.height-24)*ratio),height=width/ratio;
+      return{x:rect.x+(rect.width-width)/2,y:rect.y+(rect.height-height)/2,width,height};
     };
     const stroke=async(points,pen=false)=>{
       const r=await canvas(),at=p=>({x:r.x+p[0]*r.width,y:r.y+p[1]*r.height});
@@ -111,7 +117,7 @@ function photoFixture(noisy=false) {
     };
     const photo=photoFixture().toString('base64');
     const document={schema:1,width:512,height:512,frame:{base:photo,strokes:[],background:0}};
-    await send('Runtime.enable');await send('Page.enable');
+    await send('Runtime.enable');await send('Page.enable');await send('Network.enable');
     await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});
     await send('Emulation.setDeviceMetricsOverride',{width:1024,height:768,deviceScaleFactor:1,mobile:false});
     await send('Page.navigate',{url:'http://127.0.0.1:8766'});await delay(1500);
@@ -131,6 +137,56 @@ function photoFixture(noisy=false) {
       console.log('PASS: supplied photo release-browser extraction, reviewed acceptance, all four sampled empty-paper regions fully transparent. Artifacts: '+downloads);
       return;
     }
+    if(process.argv.includes('--selection-only')) {
+      const item=(x,y,color)=>({tool:'rectangle',points:[[x,y,1],[x+180,y+180,1]],color,width:4,opacity:1,filled:true});
+      const original={schema:1,width:1024,height:1024,frame:{base:null,background:0,
+        strokes:[item(120,120,0xffe4475d),item(220,220,0xff3e80d6)]}};
+      await open(original);await button('Select area');await stroke([[.3,.3]]);
+      await waitFor('1 item selected');assert.deepEqual(await draft(),original,'Selecting alone changed the drawing');
+      await button('Send to back');await delay(800);
+      assert.equal((await draft()).frame.strokes[0].color,0xff3e80d6);
+      await button('Bring forward');await delay(800);
+      assert.equal((await draft()).frame.strokes[1].color,0xff3e80d6);
+      await button('Larger');await delay(800);
+      assert.equal((await draft()).frame.strokes[1].placement[0],1.2);
+      await button('Smaller');await delay(800);
+      assert(Math.abs(((await draft()).frame.strokes[1].placement||[1,0,0])[0]-1)<.0001);
+      await snapshot('selected-shape-resize-layers');
+      // Drag the selected item, then use its lower-right resize handle.
+      await stroke([[.3,.3],[.4,.4]]);
+      let selected=(await draft()).frame.strokes[1];
+      assert(selected.placement[1]>70&&selected.placement[2]>70,'Selected item did not move');
+      const right=402+selected.placement[1],bottom=402+selected.placement[2];
+      await stroke([[right/1024,bottom/1024],[(right+35)/1024,(bottom+35)/1024]]);
+      assert((await draft()).frame.strokes[1].placement[0]>1.1,'Corner handle did not resize');
+      const beforeDelete=await draft();
+      await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Delete',code:'Delete',windowsVirtualKeyCode:46});
+      await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Delete',code:'Delete',windowsVirtualKeyCode:46});await delay(900);
+      assert.equal((await draft()).frame.strokes.length,1);assert.equal((await draft()).frame.base,null);
+      await button('Undo');await delay(900);assert.deepEqual(await draft(),beforeDelete);
+      await open();await button('Select area');
+      selected=(await draft()).frame.strokes[1];
+      const s=selected.placement;
+      await stroke([[(310*s[0]+s[1])/1024,(310*s[0]+s[2])/1024]]);
+      await waitFor('1 item selected');await button('Save to device');
+      let saved;
+      for(let i=0;i<100;i++){saved=fs.readdirSync(downloads).find(name=>name.startsWith('imagineos-drawing-')&&name.endsWith('.png'));if(saved)break;await delay(100);}
+      assert(saved,'Selected artwork PNG download did not finish');
+      const exported=fs.readFileSync(path.join(downloads,saved));
+      const pixels=await inspect(exported.toString('base64'),[[0,0],[150,150],[Math.round(310*s[0]+s[1]),Math.round(310*s[0]+s[2])]]);
+      assert.deepEqual(pixels[0],[0,0,0,0]);assert.deepEqual(pixels[1],[228,71,93,255]);assert.deepEqual(pixels[2],[62,128,214,255]);
+      await button('Delete selection');await delay(900);assert.equal((await draft()).frame.strokes.length,1);
+      await button('Undo');await delay(900);await button('Select area');
+      await stroke([[.05,.05],[.75,.75]]);await waitFor('2 items selected');
+      await snapshot('multi-object-selection');await button('Deselect');
+      await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
+      await open();await button('Select area');await stroke([[.15,.15]]);await waitFor('1 item selected');
+      await snapshot('phone-selection-actions');
+      assert.equal(errors.length,0,JSON.stringify(errors));
+      assert.equal(privateRequests.length,0,'Offline selection made an unexpected backend/provider request');
+      console.log('PASS: release-browser object selection, resize buttons/corner, movement, layer order, keyboard/button deletion, Undo, reload recovery, exact PNG colors and phone controls. Artifacts: '+downloads);
+      return;
+    }
     if(process.argv.includes('--text-only')){await open({schema:1,width:1024,height:1024,frame:{base:null,strokes:[],background:0}});await checkCanvasText();assert.equal(errors.length,0,JSON.stringify(errors));console.log('PASS: exact canvas text, palette colors, font selection and editable updates. Artifacts: '+downloads);return;}
     await open(document);
     console.log('Checking adaptive extraction and original comparison.');
@@ -146,6 +202,8 @@ function photoFixture(noisy=false) {
     pixels=await inspect((await draft()).frame.base,[[100,100],[256,262]]);assert.equal(pixels[0][3],0);assert.equal(pixels[1][0],225);
     await button('Undo');await delay(1100);
     pixels=await inspect((await draft()).frame.base,[[100,100]]);assert.equal(pixels[0][3],255);
+    // Undo clears the object selection. Explicitly choose a new paint region.
+    await button('Select area');await stroke([[.05,.05],[.45,.95]]);
     await button('Star');await stroke([[.05,.4],[.4,.8]]);
     assert.equal((await draft()).frame.strokes.at(-1).tool,'star');assert.equal((await draft()).frame.strokes.at(-1).selection.length,4);
     await button('Deselect');await button('Lasso select');await stroke([[.25,.22],[.8,.22],[.8,.84],[.25,.84],[.25,.22]]);

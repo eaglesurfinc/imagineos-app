@@ -37,6 +37,8 @@ The same day's follow-up requires paper cleanup that protects faint drawing line
 
 The founder's Stage 5 follow-ups on 2026-10-19 include correcting paper extraction that fails on photographed pages, keyboard Delete/Backspace for the active canvas selection with Undo and safe text-field focus, and a canvas text tool with a useful choice of fonts, sizes and changeable colors. Preserve exact typed text, editable device recovery and PNG saving; retain the source drawing and reviewed extraction. Bundle licensed fonts rather than adding a runtime font-service requirement.
 
+The 2026-10-20 selection follow-up requires selecting actual editable shapes, strokes and text by tapping or surrounding them with a rectangle/lasso. Allow moving, proportional enlargement/reduction, forward/backward layer order and toolbar/keyboard deletion with Undo. Select a region of uploaded or merged artwork as a pixel cutout; do not imply that a flattened PNG contains its old editable objects. Keep unselected content and exact text intact, recover placements/layer order in device drafts, and preserve immutable saved originals.
+
 ## Data and access
 
 - Supabase Auth with explicit parent/child/family relationships. Minimize child data; do not require child email merely to identify a creator profile.

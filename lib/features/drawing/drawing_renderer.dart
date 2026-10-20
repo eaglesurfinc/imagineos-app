@@ -7,7 +7,9 @@ import 'drawing_shapes.dart';
 import 'drawing_text_layout.dart';
 
 void paintDrawing(ui.Canvas canvas, DrawingDocument document, ui.Image? base,
-    {DrawingStroke? active, bool background = true}) {
+    {DrawingStroke? active,
+    bool background = true,
+    Map<Uint8List, ui.Image> images = const {}}) {
   final bounds = ui.Rect.fromLTWH(
       0, 0, document.width.toDouble(), document.height.toDouble());
   canvas.save();
@@ -23,18 +25,34 @@ void paintDrawing(ui.Canvas canvas, DrawingDocument document, ui.Image? base,
         bounds,
         ui.Paint());
   for (final stroke in document.frame.strokes) {
-    paintStroke(canvas, stroke);
+    paintStroke(canvas, stroke, images: images);
   }
   if (active != null) paintStroke(canvas, active);
   canvas.restore();
   canvas.restore();
 }
 
-void paintStroke(ui.Canvas canvas, DrawingStroke stroke) {
+void paintStroke(ui.Canvas canvas, DrawingStroke stroke,
+    {Map<Uint8List, ui.Image> images = const {}}) {
   canvas.save();
+  canvas.translate(stroke.placement.x, stroke.placement.y);
+  canvas.scale(stroke.placement.scale);
   if (stroke.selection.length >= 3)
     canvas.clipPath(drawingPolygon(stroke.selection));
-  _paintStroke(canvas, stroke);
+  if (stroke.tool == DrawingTool.image) {
+    final image = images[stroke.image];
+    if (image != null) {
+      canvas.drawImageRect(
+          image,
+          ui.Rect.fromLTWH(
+              0, 0, image.width.toDouble(), image.height.toDouble()),
+          ui.Rect.fromPoints(
+              stroke.points.first.offset, stroke.points.last.offset),
+          ui.Paint()..filterQuality = ui.FilterQuality.medium);
+    }
+  } else {
+    _paintStroke(canvas, stroke);
+  }
   canvas.restore();
 }
 
@@ -123,8 +141,10 @@ Future<ui.Image?> decodeDrawingBase(Uint8List? bytes) async {
 
 Future<Uint8List> exportDrawing(DrawingDocument document, ui.Image? base,
     {bool background = true}) async {
+  final images = await decodeDrawingItems(document.frame);
   final recorder = ui.PictureRecorder();
-  paintDrawing(ui.Canvas(recorder), document, base, background: background);
+  paintDrawing(ui.Canvas(recorder), document, base,
+      background: background, images: images);
   final picture = recorder.endRecording();
   ui.Image? output;
   try {
@@ -136,5 +156,34 @@ Future<Uint8List> exportDrawing(DrawingDocument document, ui.Image? base,
   } finally {
     output?.dispose();
     picture.dispose();
+    for (final image in images.values) {
+      image.dispose();
+    }
+  }
+}
+
+Future<Map<Uint8List, ui.Image>> decodeDrawingItems(DrawingFrame frame) async {
+  final images = <Uint8List, ui.Image>{};
+  var pixels = 0;
+  try {
+    for (final stroke in frame.strokes) {
+      final bytes = stroke.image;
+      if (bytes != null && !images.containsKey(bytes)) {
+        if (bytes.length < 24)
+          throw const FormatException('Invalid artwork item.');
+        final header = ByteData.sublistView(bytes);
+        pixels += header.getUint32(16) * header.getUint32(20);
+        if (pixels > 16000000)
+          throw const FormatException(
+              'Merge paint to keep this workspace manageable.');
+        images[bytes] = (await decodeDrawingBase(bytes))!;
+      }
+    }
+    return images;
+  } catch (_) {
+    for (final image in images.values) {
+      image.dispose();
+    }
+    rethrow;
   }
 }

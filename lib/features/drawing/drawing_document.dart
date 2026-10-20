@@ -29,7 +29,9 @@ enum DrawingTool {
   star,
   heart,
   arrow,
-  text;
+  text,
+  // An editable cutout from uploaded or merged pixels, not a drawing tool.
+  image;
 
   bool get isShape => const {
         line,
@@ -59,6 +61,30 @@ class DrawingPoint {
       (json[2] as num).toDouble());
 }
 
+/// Uniform, reversible placement keeps source points, text and PNG bytes intact.
+class DrawingPlacement {
+  const DrawingPlacement({this.scale = 1, this.x = 0, this.y = 0});
+  final double scale, x, y;
+  Offset apply(Offset point) => point * scale + Offset(x, y);
+  Offset invert(Offset point) => (point - Offset(x, y)) / scale;
+  Rect applyRect(Rect rect) =>
+      Rect.fromPoints(apply(rect.topLeft), apply(rect.bottomRight));
+  DrawingPlacement changed(double factor, Offset pivot, Offset delta) =>
+      DrawingPlacement(
+          scale: scale * factor,
+          x: (x - pivot.dx) * factor + pivot.dx + delta.dx,
+          y: (y - pivot.dy) * factor + pivot.dy + delta.dy);
+  List<double> toJson() => [scale, x, y];
+  factory DrawingPlacement.fromJson(List<dynamic> values) {
+    if (values.length != 3)
+      throw const FormatException('Invalid item placement.');
+    return DrawingPlacement(
+        scale: (values[0] as num).toDouble(),
+        x: (values[1] as num).toDouble(),
+        y: (values[2] as num).toDouble());
+  }
+}
+
 class DrawingStroke {
   const DrawingStroke(
       {required this.tool,
@@ -71,7 +97,9 @@ class DrawingStroke {
       this.fontFamily = 'Nunito',
       this.fontSize = 48,
       this.textWidth = 400,
-      this.selection = const []});
+      this.selection = const [],
+      this.placement = const DrawingPlacement(),
+      this.image});
   final DrawingTool tool;
   final List<DrawingPoint> points;
   final int color;
@@ -80,6 +108,22 @@ class DrawingStroke {
   final String text, fontFamily;
   final double fontSize, textWidth;
   final List<DrawingPoint> selection;
+  final DrawingPlacement placement;
+  final Uint8List? image;
+  DrawingStroke placed(DrawingPlacement value) => DrawingStroke(
+      tool: tool,
+      points: points,
+      color: color,
+      width: width,
+      opacity: opacity,
+      filled: filled,
+      text: text,
+      fontFamily: fontFamily,
+      fontSize: fontSize,
+      textWidth: textWidth,
+      selection: selection,
+      placement: value,
+      image: image);
   Map<String, dynamic> toJson() => {
         'tool': tool.name,
         'points': points.map((p) => p.toJson()).toList(),
@@ -87,6 +131,9 @@ class DrawingStroke {
         'width': width,
         'opacity': opacity,
         'filled': filled,
+        if (placement.scale != 1 || placement.x != 0 || placement.y != 0)
+          'placement': placement.toJson(),
+        if (image != null) 'image': base64Encode(image!),
         if (tool == DrawingTool.text) ...{
           'text': text,
           'font_family': fontFamily,
@@ -105,6 +152,11 @@ class DrawingStroke {
       width: (json['width'] as num).toDouble(),
       opacity: (json['opacity'] as num).toDouble(),
       filled: json['filled'] as bool,
+      placement: json['placement'] == null
+          ? const DrawingPlacement()
+          : DrawingPlacement.fromJson(json['placement'] as List),
+      image:
+          json['image'] == null ? null : base64Decode(json['image'] as String),
       text: json['text'] as String? ?? '',
       fontFamily: json['font_family'] as String? ?? 'Nunito',
       fontSize: (json['font_size'] as num?)?.toDouble() ?? 48,
@@ -155,7 +207,10 @@ class DrawingDocument {
     _frames.add(frame);
     // Shared frames reuse immutable base bytes and completed strokes.
     while (_frames.length > 1) {
-      final bases = _frames.map((f) => f.base).whereType<Uint8List>().toSet();
+      final bases = _frames
+          .expand((f) => [f.base, ...f.strokes.map((s) => s.image)])
+          .whereType<Uint8List>()
+          .toSet();
       if (_frames.length <= 40 &&
           bases.fold<int>(0, (sum, bytes) => sum + bytes.length) <=
               20 * 1024 * 1024) break;
@@ -192,6 +247,19 @@ class DrawingDocument {
         frame.strokes.any((s) =>
             s.points.length > 20000 ||
             s.selection.length > 6000 ||
+            !s.placement.scale.isFinite ||
+            s.placement.scale < .01 ||
+            s.placement.scale > 64 ||
+            !s.placement.x.isFinite ||
+            !s.placement.y.isFinite ||
+            s.placement.x.abs() > 100000 ||
+            s.placement.y.abs() > 100000 ||
+            (s.tool == DrawingTool.image &&
+                (s.image == null ||
+                    s.points.length != 2 ||
+                    s.points.first.x >= s.points.last.x ||
+                    s.points.first.y >= s.points.last.y)) ||
+            (s.tool != DrawingTool.image && s.image != null) ||
             (s.tool == DrawingTool.text &&
                 (s.text.length > 2000 ||
                     s.points.length != 1 ||

@@ -35,6 +35,7 @@ class _TextEditorState extends State<_TextEditor> {
       width: widget.initial.width,
       opacity: widget.initial.opacity,
       selection: widget.initial.selection,
+      placement: widget.initial.placement,
       text: _text.text,
       fontFamily: _font,
       fontSize: _size,
@@ -128,7 +129,7 @@ class _TextEditorState extends State<_TextEditor> {
                 const Text(
                     'This text does not fit below this point. Use a smaller size, fewer words, or cancel and choose a point nearer the top left.'),
               const Text(
-                  'Tap text with the Text tool to change its words, font or color. Pixel cleanup, selection deletion and Merge paint flatten text; Undo restores editability. PNG copies contain pixels.'),
+                  'Tap text with the Text tool to change its words, font or color. Select it to move, resize, reorder or delete it. Pixel cleanup and Merge paint flatten text; Undo restores editability. PNG copies contain pixels.'),
             ])),
         actions: [
           TextButton(

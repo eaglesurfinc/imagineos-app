@@ -20,7 +20,9 @@ import 'drawing_input.dart';
 import 'pen_setup.dart';
 import 'drawing_download.dart';
 import 'drawing_text_editor.dart';
-import 'drawing_text_layout.dart';
+import 'drawing_selection.dart';
+import 'drawing_raster_selection.dart';
+import 'drawing_selection_toolbar.dart';
 
 Future<OriginalFile?> openDrawingStudio(BuildContext context,
         {required String draftKey,
@@ -52,6 +54,7 @@ class _DrawingStudioState extends State<DrawingStudio> {
   final _focus = FocusNode(debugLabel: 'Drawing canvas');
   DrawingDocument? _document;
   ui.Image? _base;
+  Map<Uint8List, ui.Image> _images = {};
   DrawingTool _tool = DrawingTool.pen;
   String _kit = 'Paint';
   int _color = 0xff7959c3;
@@ -64,6 +67,30 @@ class _DrawingStudioState extends State<DrawingStudio> {
   bool _inverted = false, _penOnly = false;
   String _input = 'Draw with a finger, mouse, or compatible pen.';
   List<DrawingPoint> _selection = [];
+  Set<int> _selectedItems = {};
+  DrawingRasterSelection? _selectedRaster;
+  ui.Image? _selectionBase;
+  Map<Uint8List, ui.Image> _selectionImages = {};
+  DrawingFrame? _previewFrame, _gestureFrame;
+  Set<int> _gestureItems = {};
+  Rect? _gestureBounds;
+  Offset? _gestureStart, _resizePivot;
+  bool _gestureChanged = false;
+  bool get _hasItems => _selectedItems.isNotEmpty || _selectedRaster != null;
+  DrawingFrame get _selectionFrame => _selectedRaster == null
+      ? _document!.frame
+      : DrawingFrame(
+          base: _selectedRaster!.remaining,
+          background: _document!.frame.background,
+          strokes: [_selectedRaster!.item, ..._document!.frame.strokes]);
+  Set<int> get _selectionItems => _selectedRaster == null
+      ? _selectedItems
+      : {0, ..._selectedItems.map((i) => i + 1)};
+  Rect? get _itemBounds => _previewFrame != null
+      ? drawingSelectionBounds(_previewFrame!.strokes, _gestureItems)
+      : _hasItems
+          ? drawingSelectionBounds(_selectionFrame.strokes, _selectionItems)
+          : null;
   DrawingTool get _activeTool => _inverted ? DrawingTool.eraser : _tool;
   List<List<double>> get _selectionPolygon =>
       _selection.map((p) => [p.x, p.y]).toList();
@@ -82,12 +109,18 @@ class _DrawingStudioState extends State<DrawingStudio> {
     _transform.dispose();
     _focus.dispose();
     _base?.dispose();
+    for (final image in _images.values) {
+      image.dispose();
+    }
+    _clearSelection();
     super.dispose();
   }
 
   Future<void> _load() async {
     if (mounted) setState(() => _busy = true);
     String? saved;
+    ui.Image? base;
+    Map<Uint8List, ui.Image> images = {};
     try {
       saved = await _drafts.read(widget.draftKey);
     } catch (_) {}
@@ -105,14 +138,19 @@ class _DrawingStudioState extends State<DrawingStudio> {
       } else {
         document = DrawingDocument();
       }
-      final base = await decodeDrawingBase(document.frame.base);
+      base = await decodeDrawingBase(document.frame.base);
+      images = await decodeDrawingItems(document.frame);
       if (!mounted) {
         base?.dispose();
+        for (final image in images.values) {
+          image.dispose();
+        }
         return;
       }
       setState(() {
         _document = document;
         _base = base;
+        _images = images;
         _busy = false;
         _cursor = Offset(document.width / 2, document.height / 2);
         _status = saved == null
@@ -120,6 +158,10 @@ class _DrawingStudioState extends State<DrawingStudio> {
             : 'Device draft restored. Undo history starts here.';
       });
     } catch (_) {
+      base?.dispose();
+      for (final image in images.values) {
+        image.dispose();
+      }
       if (mounted)
         setState(() {
           _busy = false;
@@ -152,17 +194,41 @@ class _DrawingStudioState extends State<DrawingStudio> {
     }
   }
 
-  Future<void> _frame(DrawingFrame frame, {bool? redo}) async {
+  Future<bool> _frame(DrawingFrame frame,
+      {bool? redo, Set<int>? selected}) async {
     setState(() => _busy = true);
+    ui.Image? base;
+    Map<Uint8List, ui.Image> images = {};
     try {
-      final base = await decodeDrawingBase(frame.base);
-      if (!mounted) {
+      if (frame.strokes.length > 500 ||
+          DrawingDocument(
+                      width: _document!.width,
+                      height: _document!.height,
+                      frame: frame)
+                  .encode()
+                  .length >
+              8 * 1024 * 1024) {
+        throw const FormatException(
+            'Merge paint before adding more editable items.');
+      }
+      base = await decodeDrawingBase(frame.base);
+      images = await decodeDrawingItems(frame);
+      if (!mounted || _session != _drafts.generation) {
         base?.dispose();
-        return;
+        for (final image in images.values) {
+          image.dispose();
+        }
+        return false;
       }
       setState(() {
         _base?.dispose();
+        for (final image in _images.values) {
+          image.dispose();
+        }
         _base = base;
+        _images = images;
+        _clearSelection();
+        _selectedItems = selected ?? {};
         if (redo == null)
           _document!.commit(frame);
         else if (redo)
@@ -172,14 +238,163 @@ class _DrawingStudioState extends State<DrawingStudio> {
         _busy = false;
       });
       _checkpointDraft();
-    } catch (_) {
+      if (selected != null) _focus.requestFocus();
+      return true;
+    } catch (error) {
+      base?.dispose();
+      for (final image in images.values) {
+        image.dispose();
+      }
       if (mounted)
         setState(() {
           _busy = false;
-          _status =
-              'Could not apply that change. Your previous drawing is kept.';
+          _cancelSelectionGesture();
+          _status = error is FormatException
+              ? error.message
+              : 'Could not apply that change. Your previous drawing is kept.';
+        });
+      return false;
+    }
+  }
+
+  void _cancelSelectionGesture() {
+    _previewFrame = null;
+    _gestureFrame = null;
+    _gestureItems = {};
+    _gestureBounds = null;
+    _gestureStart = null;
+    _resizePivot = null;
+    _gestureChanged = false;
+  }
+
+  void _clearSelection({bool region = true}) {
+    if (region) _selection = [];
+    _selectedItems = {};
+    _selectedRaster = null;
+    _selectionBase?.dispose();
+    _selectionBase = null;
+    for (final image in _selectionImages.values) {
+      image.dispose();
+    }
+    _selectionImages = {};
+    _cancelSelectionGesture();
+  }
+
+  Future<void> _selectItems(List<DrawingPoint> points) async {
+    final tap = points.length == 1 ||
+        (_tool == DrawingTool.select &&
+            (points.first.offset - points.last.offset).distance < 3);
+    final polygon = tap
+        ? <DrawingPoint>[]
+        : _tool == DrawingTool.select
+            ? selectionRectangle(points.first, points.last)
+            : points;
+    if (!tap &&
+        (polygon.length < 3 || drawingPolygon(polygon).getBounds().isEmpty))
+      return;
+    final strokes = _document!.frame.strokes;
+    final hit = tap ? hitDrawingItem(strokes, points.first.offset) : null;
+    final selected = tap
+        ? <int>{if (hit != null) hit}
+        : drawingItemsInArea(strokes, polygon);
+    setState(() => _busy = true);
+    ui.Image? base;
+    Map<Uint8List, ui.Image> images = {};
+    try {
+      final bytes = _document!.frame.base;
+      final raster = bytes != null && (!tap || hit == null)
+          ? await compute(
+              selectDrawingRaster,
+              DrawingRasterSelectionRequest(bytes, polygon,
+                  tap: tap ? points.first.offset : null))
+          : null;
+      if (raster != null) {
+        base = await decodeDrawingBase(raster.remaining);
+        images = await decodeDrawingItems(DrawingFrame(strokes: [raster.item]));
+      }
+      if (!mounted || _session != _drafts.generation) {
+        base?.dispose();
+        for (final image in images.values) {
+          image.dispose();
+        }
+        return;
+      }
+      setState(() {
+        _clearSelection();
+        _selection = polygon;
+        _selectedItems = selected;
+        _selectedRaster = raster;
+        _selectionBase = base;
+        _selectionImages = images;
+        _busy = false;
+        _status = _hasItems
+            ? 'Items selected. Drag to move, use a corner or Smaller/Larger to resize, reorder, or delete. Undo restores changes.'
+            : 'No artwork selected. Tap an item or drag around artwork. An empty area can still limit painting and cleanup.';
+      });
+    } catch (_) {
+      base?.dispose();
+      for (final image in images.values) {
+        image.dispose();
+      }
+      if (mounted)
+        setState(() {
+          _busy = false;
+          _status = 'Could not select that area. Your drawing is kept.';
         });
     }
+  }
+
+  Future<void> _deleteSelection() async {
+    if (_busy || _document == null) return;
+    if (!_hasItems) {
+      if (_selection.isNotEmpty)
+        await _pixel(
+            DrawingPixelOperation.clearSelection, const DrawingPoint(0, 0));
+      return;
+    }
+    final frame = _selectionFrame, selected = _selectionItems;
+    await _frame(frame.copyWith(strokes: [
+      for (var i = 0; i < frame.strokes.length; i++)
+        if (!selected.contains(i)) frame.strokes[i]
+    ]));
+  }
+
+  Future<void> _resizeItems(double factor, {Offset delta = Offset.zero}) async {
+    if (_busy || !_hasItems || _document == null) return;
+    final selected = _selectionItems;
+    final frame = transformDrawingItems(_selectionFrame, selected, _itemBounds!,
+        Size(_document!.width.toDouble(), _document!.height.toDouble()),
+        factor: factor, delta: delta);
+    await _frame(frame, selected: selected);
+  }
+
+  Future<void> _reorderItems(DrawingLayerOrder order) async {
+    if (_busy || !_hasItems) return;
+    var frame = _selectionFrame;
+    var selected = _selectionItems;
+    // Make the existing photo/merged layer participate in ordering, so a
+    // selected shape can go behind it without flattening or redrawing anything.
+    if (frame.base != null) {
+      setState(() => _busy = true);
+      try {
+        final base = await compute(selectDrawingRaster,
+            DrawingRasterSelectionRequest(frame.base!, const []));
+        if (!mounted || _session != _drafts.generation) return;
+        frame = DrawingFrame(
+            background: frame.background,
+            strokes: [if (base != null) base.item, ...frame.strokes]);
+        if (base != null) selected = selected.map((i) => i + 1).toSet();
+      } catch (_) {
+        if (mounted)
+          setState(() {
+            _busy = false;
+            _status = 'Could not reorder those items. Your drawing is kept.';
+          });
+        return;
+      }
+    }
+    final result = reorderDrawingItems(frame, selected, order);
+    await _frame(result.frame, selected: result.selected);
   }
 
   void _history(bool redo) {
@@ -223,6 +438,36 @@ class _DrawingStudioState extends State<DrawingStudio> {
     _inverted = event.kind == ui.PointerDeviceKind.invertedStylus;
     _pointer = event.pointer;
     final point = _point(position, size, drawingPressure(event));
+    final bounds = _itemBounds;
+    if (_activeTool.isSelection && bounds != null) {
+      final radius = 20 *
+          _document!.width /
+          size.width /
+          _transform.value.getMaxScaleOnAxis();
+      Offset? corner;
+      for (final candidate in [
+        bounds.topLeft,
+        bounds.topRight,
+        bounds.bottomLeft,
+        bounds.bottomRight
+      ]) {
+        if ((candidate - point.offset).distance <= radius) {
+          corner = candidate;
+          break;
+        }
+      }
+      if (corner != null || bounds.contains(point.offset)) {
+        setState(() {
+          _gestureFrame = _selectionFrame;
+          _gestureItems = Set.of(_selectionItems);
+          _gestureBounds = bounds;
+          _gestureStart = point.offset;
+          _resizePivot = corner == null ? null : bounds.center * 2 - corner;
+          _gestureChanged = false;
+        });
+        return;
+      }
+    }
     setState(() {
       _input = event.kind == ui.PointerDeviceKind.stylus || _inverted
           ? 'Pen input received - pressure ${(drawingPressure(event) * 100).round()}%'
@@ -236,6 +481,28 @@ class _DrawingStudioState extends State<DrawingStudio> {
   }
 
   void _move(PointerEvent event, Offset position, Size size) {
+    if (_pointer == event.pointer && !_busy && _gestureFrame != null) {
+      final point = _point(position, size, 1).offset;
+      final start = _gestureStart!, pivot = _resizePivot;
+      if ((point - start).distance < .5) return;
+      final vector = pivot == null ? Offset.zero : start - pivot;
+      final factor = pivot == null
+          ? 1.0
+          : ((point - pivot).dx * vector.dx + (point - pivot).dy * vector.dy) /
+              math.max(.001, vector.distanceSquared);
+      setState(() {
+        _gestureChanged = true;
+        _previewFrame = transformDrawingItems(
+            _gestureFrame!,
+            _gestureItems,
+            _gestureBounds!,
+            Size(_document!.width.toDouble(), _document!.height.toDouble()),
+            delta: pivot == null ? point - start : Offset.zero,
+            factor: factor,
+            pivot: pivot);
+      });
+      return;
+    }
     if (_pointer != event.pointer || _busy || _rasterTool || _points.isEmpty)
       return;
     final point = _point(position, size, drawingPressure(event));
@@ -253,6 +520,21 @@ class _DrawingStudioState extends State<DrawingStudio> {
   }
 
   Future<void> _finish() async {
+    if (_gestureFrame != null) {
+      final frame = _previewFrame, selected = Set<int>.of(_gestureItems);
+      final changed = _gestureChanged;
+      setState(() {
+        _pointer = null;
+        _inverted = false;
+        _points = [];
+      });
+      if (changed && frame != null) {
+        await _frame(frame, selected: selected);
+      } else {
+        setState(_cancelSelectionGesture);
+      }
+      return;
+    }
     final points = List<DrawingPoint>.of(_points);
     final tool = _activeTool, raster = _rasterTool;
     final stroke = _stroke(points);
@@ -267,20 +549,7 @@ class _DrawingStudioState extends State<DrawingStudio> {
       return;
     }
     if (tool.isSelection) {
-      final polygon = tool == DrawingTool.select
-          ? selectionRectangle(points.first, points.last)
-          : points;
-      final bounds = drawingPolygon(polygon).getBounds();
-      setState(() {
-        if (polygon.length >= 3 && bounds.width >= 2 && bounds.height >= 2) {
-          _selection = polygon;
-          _status =
-              'Area selected. Paint and cleanup stay inside it. Choose a tool, delete it, or keep only this area.';
-        } else {
-          _status =
-              'Drag the pointer around an area, or trace it with Lasso select.';
-        }
-      });
+      await _selectItems(points);
       return;
     }
     if (raster) {
@@ -383,7 +652,7 @@ class _DrawingStudioState extends State<DrawingStudio> {
     var index = -1;
     for (var i = strokes.length - 1; i >= 0; i--) {
       if (strokes[i].tool == DrawingTool.text &&
-          drawingTextBounds(strokes[i]).contains(point.offset)) {
+          drawingItemBounds(strokes[i]).contains(point.offset)) {
         index = i;
         break;
       }
@@ -410,7 +679,9 @@ class _DrawingStudioState extends State<DrawingStudio> {
     try {
       final updated = await editDrawingText(context,
           initial: initial,
-          maxHeight: _document!.height - initial.points.first.y);
+          maxHeight: (_document!.height -
+                  initial.placement.apply(initial.points.first.offset).dy) /
+              initial.placement.scale);
       if (!mounted || _session != _drafts.generation) return;
       if (updated != null) {
         final next = List<DrawingStroke>.of(strokes);
@@ -422,7 +693,7 @@ class _DrawingStudioState extends State<DrawingStudio> {
         setState(() {
           _document!.commit(_document!.frame.copyWith(strokes: next));
           _status =
-              'Text placed. Tap it with the Text tool to edit, or select an area and press Delete. Undo restores changes.';
+              'Text placed. Tap it with Text to edit, or use Select area to move, resize, reorder or delete it.';
         });
         _checkpointDraft();
       }
@@ -556,11 +827,13 @@ class _DrawingStudioState extends State<DrawingStudio> {
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.delete ||
         key == LogicalKeyboardKey.backspace) {
-      if (_selection.isEmpty || _points.isNotEmpty || event is! KeyDownEvent) {
+      if ((!_hasItems && _selection.isEmpty) ||
+          _points.isNotEmpty ||
+          _gestureFrame != null ||
+          event is! KeyDownEvent) {
         return KeyEventResult.ignored;
       }
-      unawaited(_pixel(
-          DrawingPixelOperation.clearSelection, const DrawingPoint(0, 0)));
+      unawaited(_deleteSelection());
       return KeyEventResult.handled;
     }
     var movement = Offset.zero;
@@ -569,6 +842,10 @@ class _DrawingStudioState extends State<DrawingStudio> {
     if (key == LogicalKeyboardKey.arrowUp) movement = const Offset(0, -8);
     if (key == LogicalKeyboardKey.arrowDown) movement = const Offset(0, 8);
     if (movement != Offset.zero) {
+      if (_hasItems && _tool.isSelection && _points.isEmpty) {
+        unawaited(_resizeItems(1, delta: movement));
+        return KeyEventResult.handled;
+      }
       setState(() {
         _showCursor = true;
         _cursor = Offset(
@@ -597,7 +874,7 @@ class _DrawingStudioState extends State<DrawingStudio> {
       setState(() {
         _points = [];
         _pointer = null;
-        _selection = [];
+        _clearSelection();
       });
       return KeyEventResult.handled;
     }
@@ -622,6 +899,8 @@ class _DrawingStudioState extends State<DrawingStudio> {
                   ? null
                   : (_) => setState(() {
                         _tool = tool.key;
+                        if (!tool.key.isSelection)
+                          _clearSelection(region: false);
                         _opacity = tool.key == DrawingTool.highlighter
                             ? .3
                             : tool.key == DrawingTool.softBrush
@@ -646,6 +925,7 @@ class _DrawingStudioState extends State<DrawingStudio> {
                         ? null
                         : (_) => setState(() {
                               _kit = kit;
+                              _clearSelection(region: false);
                               _points = [];
                               _pointer = null;
                               _inverted = false;
@@ -670,29 +950,11 @@ class _DrawingStudioState extends State<DrawingStudio> {
         const SizedBox(height: 12),
         Text('Shapes', style: Theme.of(context).textTheme.titleMedium),
         _toolChoices(shapes: true),
-        if (_selection.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          const Text(
-              'Selection active: edits stay inside the blue outline. With the canvas focused, press Delete or Backspace to clear it. Undo restores it.'),
-          Wrap(spacing: 6, children: [
-            TextButton(
-                onPressed: _busy ? null : () => setState(() => _selection = []),
-                child: const Text('Deselect')),
-            TextButton(
-                onPressed: _busy
-                    ? null
-                    : () => _pixel(DrawingPixelOperation.clearSelection,
-                        const DrawingPoint(0, 0)),
-                child: const Text('Delete selection')),
-            TextButton(
-                onPressed: _busy
-                    ? null
-                    : () => _pixel(
-                        DrawingPixelOperation.cutout, const DrawingPoint(0, 0),
-                        polygon: _selectionPolygon),
-                child: const Text('Keep only selection')),
-          ]),
-        ],
+        if (_tool.isSelection)
+          const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                  'Tap an item or drag a box; Lasso traces an area. Drag selected items to move, or drag a corner to resize. Delete removes selected items; Undo restores them. Uploaded and merged artwork is selected as pixels.')),
         const SizedBox(height: 12),
         Text('Colors', style: Theme.of(context).textTheme.titleMedium),
         Wrap(
@@ -855,7 +1117,7 @@ class _DrawingStudioState extends State<DrawingStudio> {
                         },
                         child: Semantics(
                             label:
-                                'Drawing canvas. Arrow keys move the cursor. Space starts or finishes a stroke. Delete or Backspace clears the selection. Escape cancels. Two fingers zoom.',
+                                'Drawing canvas. Tap or surround items to select. Drag selected items to move; corners resize. Arrow keys move selected items or the cursor. Delete or Backspace deletes the selection. Escape cancels. Two fingers zoom.',
                             child: MouseRegion(
                                 cursor: _tool.isSelection
                                     ? SystemMouseCursors.basic
@@ -875,6 +1137,7 @@ class _DrawingStudioState extends State<DrawingStudio> {
                                           _points = [];
                                           _pointer = null;
                                           _inverted = false;
+                                          _cancelSelectionGesture();
                                         }),
                                     child: CustomPaint(
                                         key: const ValueKey('drawing-canvas'),
@@ -882,8 +1145,12 @@ class _DrawingStudioState extends State<DrawingStudio> {
                                             DrawingDocument(
                                                 width: document.width,
                                                 height: document.height,
-                                                frame: document.frame),
-                                            _base,
+                                                frame: _previewFrame ??
+                                                    document.frame),
+                                            _previewFrame != null &&
+                                                    _selectedRaster != null
+                                                ? _selectionBase
+                                                : _base,
                                             _points.isNotEmpty &&
                                                     !_rasterTool &&
                                                     !_activeTool.isSelection &&
@@ -893,7 +1160,16 @@ class _DrawingStudioState extends State<DrawingStudio> {
                                                 : null,
                                             _outline,
                                             _showCursor ? _cursor : null,
-                                            selection: _selection),
+                                            images: {
+                                              ..._images,
+                                              if (_previewFrame != null)
+                                                ..._selectionImages
+                                            },
+                                            selection: _previewFrame == null
+                                                ? _selection
+                                                : const [],
+                                            itemBounds: _itemBounds,
+                                            handleRadius: 6 * document.width / size.width / _transform.value.getMaxScaleOnAxis()),
                                         child: const SizedBox.expand()))))))));
       });
   @override
@@ -1002,6 +1278,19 @@ class _DrawingStudioState extends State<DrawingStudio> {
                                           style: const TextStyle(
                                               fontWeight: FontWeight.bold)),
                                     ]))),
+                        if (_hasItems || _selection.isNotEmpty)
+                          DrawingSelectionToolbar(
+                              count: _selectionItems.length,
+                              busy: _busy || _pointer != null,
+                              hasArea: _selection.isNotEmpty,
+                              onDeselect: () => setState(_clearSelection),
+                              onDelete: _deleteSelection,
+                              onResize: _resizeItems,
+                              onReorder: _reorderItems,
+                              onKeepArea: () => _pixel(
+                                  DrawingPixelOperation.cutout,
+                                  const DrawingPoint(0, 0),
+                                  polygon: _selectionPolygon)),
                         if (_busy && !_dialogOpen)
                           const LinearProgressIndicator(
                               semanticsLabel: 'Preparing drawing'),

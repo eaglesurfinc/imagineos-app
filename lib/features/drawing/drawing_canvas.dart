@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'drawing_document.dart';
 import 'drawing_renderer.dart';
@@ -29,19 +30,25 @@ class CheckerPainter extends CustomPainter {
 class DrawingCanvasPainter extends CustomPainter {
   const DrawingCanvasPainter(
       this.document, this.base, this.active, this.outline, this.cursor,
-      {this.selection = const []});
+      {this.selection = const [],
+      this.itemBounds,
+      this.images = const {},
+      this.handleRadius = 6});
   final DrawingDocument document;
   final ui.Image? base;
   final DrawingStroke? active;
   final List<DrawingPoint> outline;
   final Offset? cursor;
   final List<DrawingPoint> selection;
+  final Rect? itemBounds;
+  final Map<Uint8List, ui.Image> images;
+  final double handleRadius;
   @override
   void paint(Canvas canvas, Size size) {
     const CheckerPainter().paint(canvas, size);
     canvas.save();
     canvas.scale(size.width / document.width, size.height / document.height);
-    paintDrawing(canvas, document, base, active: active);
+    paintDrawing(canvas, document, base, active: active, images: images);
     if (outline.isNotEmpty) {
       final path = drawingPolygon(outline);
       canvas.drawPath(path,
@@ -63,14 +70,29 @@ class DrawingCanvasPainter extends CustomPainter {
             ..color = const Color(0xff007b94)
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2);
-      final bounds = path.getBounds();
+    }
+    final bounds = itemBounds;
+    if (bounds != null) {
+      canvas.drawRect(
+          bounds,
+          Paint()
+            ..color = const Color(0xff007b94)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = handleRadius / 3);
       for (final point in [
         bounds.topLeft,
         bounds.topRight,
         bounds.bottomLeft,
         bounds.bottomRight
       ]) {
-        canvas.drawCircle(point, 4, Paint()..color = const Color(0xff007b94));
+        canvas.drawCircle(point, handleRadius, Paint()..color = Colors.white);
+        canvas.drawCircle(
+            point,
+            handleRadius,
+            Paint()
+              ..color = const Color(0xff007b94)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = handleRadius / 3);
       }
     }
     if (cursor != null) {

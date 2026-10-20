@@ -56,6 +56,7 @@ Gate: both in-app drawing and photo upload produce persistent, revisitable origi
 
 - [x] Protect faint lines during paper cleanup, compare before/after, and test uneven page lighting.
 - [x] Add pointer/lasso selections that limit paint, fill, cleanup and deletion; keep selected stroke boundaries after draft recovery.
+- [x] Select editable canvas items and uploaded-artwork regions; move, resize proportionally, change layer order and delete with Undo, keyboard access and device draft recovery.
 - [x] Improve connected-area removal with drawing-edge protection, tiny-gap bridging and review controls.
 - [x] Add more outlined/filled shapes and standard touch/pen input: pressure, eraser tip, pen-only mode, and two-finger navigation without accidental paint.
 - [x] Export a transparent PNG to the current device without cloud saving, verify a real browser download, and preserve the workspace on failure/cancel.
