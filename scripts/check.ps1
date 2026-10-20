@@ -8,7 +8,7 @@ foreach ($toolName in @('flutter', 'dart', 'node')) {
 
 Push-Location (Split-Path -Parent $PSScriptRoot)
 try {
-    & flutter pub get
+    & flutter pub get --enforce-lockfile
     if ($LASTEXITCODE -ne 0) { throw 'Dependency resolution failed.' }
 
     $formatTargets = @('lib')
@@ -24,7 +24,8 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
     }
 
-    & node --test backend/tests/illustration_gateway_test.mjs backend/tests/parent_providers_test.mjs backend/tests/parent_controls_test.mjs backend/tests/child_access_test.mjs
+    $offlineTests = @(Get-ChildItem -LiteralPath 'backend/tests' -Filter '*_test.mjs' | Sort-Object Name | ForEach-Object { $_.FullName })
+    & node --test @offlineTests
     if ($LASTEXITCODE -ne 0) { throw 'Gateway contract tests failed.' }
 
     & flutter build web

@@ -1,3 +1,4 @@
+import {requestLog, type LogSink} from "../_shared/observability.ts";
 // No provider SDK, generation flag, privileged key or billable operation exists
 // in this Stage 5 handler. Enabling generation requires a reviewed replacement.
 export type IllustrationRequest = {
@@ -11,6 +12,7 @@ export type IllustrationRequest = {
 };
 
 export type Dependencies = {
+  log?: LogSink;
   authenticate: (authorization: string) => Promise<boolean>;
   ownsReadyReference: (authorization: string, request: IllustrationRequest) => Promise<boolean>;
 };
@@ -69,6 +71,7 @@ async function boundedJson(request: Request): Promise<unknown> {
 
 export function createHandler(deps: Dependencies) {
   return async (request: Request): Promise<Response> => {
+    const log = requestLog("illustration-gateway", request.method, {sink: deps.log});
     const origin = request.headers.get("origin");
     const headers = new Headers({ "content-type": "application/json", "cache-control": "no-store", "vary": "Origin" });
     if (origin && origins.has(origin)) {
@@ -81,6 +84,7 @@ export function createHandler(deps: Dependencies) {
     let hash: string | null = null;
     const respond = (http: number, status: string, code: string, retryable = false) => {
       const trace = parsed?.trace_id ?? crypto.randomUUID();
+      log(http, code, trace);
       headers.set("x-trace-id", trace);
       return new Response(JSON.stringify({
         contract_version: 1, request_id: parsed?.request_id ?? null,
@@ -89,7 +93,10 @@ export function createHandler(deps: Dependencies) {
       }), { status: http, headers });
     };
     if (origin && !origins.has(origin)) return respond(403, "rejected", "ORIGIN_DENIED");
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
+    if (request.method === "OPTIONS") {
+      log(204, "PREFLIGHT", crypto.randomUUID());
+      return new Response(null, { status: 204, headers });
+    }
     if (request.method !== "POST") return respond(405, "rejected", "METHOD_NOT_ALLOWED");
     const authorization = request.headers.get("authorization") ?? "";
     if (!/^Bearer [^\s]+$/.test(authorization)) return respond(401, "rejected", "AUTH_REQUIRED");

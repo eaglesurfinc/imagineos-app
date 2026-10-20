@@ -176,8 +176,20 @@ Reuse the immutable stroke list with optional uniform placement and an internal 
 
 Optional fields preserve compatibility with existing schema-1 device drafts; new placement/image fields are validated and decoded image resources are disposed. PNG saving and the existing cloud character/version pipeline remain snapshots, with no migration or provider call. Reopened cloud PNGs are flattened artwork: regions can be selected as pixels, but earlier vector/text objects cannot be reconstructed. Pixel cleanup and Merge paint retain their documented flattening behavior; current device drafts preserve the editable items until those explicit operations.
 
+## 2026-10-20 - Defer AI connection and prioritize remaining non-AI work
+
+The founder deferred AI connection/testing and directed completion of the remaining non-AI work first. Leave existing provider connections and the disabled gateway unchanged; do not connect an account, enable generation or run a paid benchmark. Remove the unpublished, unused experimental image transport from this increment. The completed personal-account setup guide remains in `OPENAI_TEST_SETUP.md` for a future explicit resumption; it is not an active setup task or spending authorization.
+
+Finish bounded engineering gates in order: automated checks and content-free diagnostics; saved-story recovery when source artwork was already deleted; operator backup/restore preparation and repeatable release checks. Preserve exact words/order and never recreate deleted artwork or choose replacement art automatically. Consent/retention, protected backup destination, incident ownership and physical-device/email checks still need explicit decisions or evidence; AI deferral does not resolve those gates or authorize a real-child pilot.
+
+## 2026-10-20 - Automated checks and bounded request diagnostics
+
+Share the existing exact Flutter SDK pin between Vercel and a secret-free GitHub Actions check workflow. Enforce the committed dependency lockfile and discover the complete offline Node test set; do not include network smoke tests or deploy from checks. Immutable official action revisions and read-only repository credentials limit the checks' scope.
+
+Add one shared allowlist-only logger to the four gateway handlers instead of copying request/error logging. Record function/method/status/result code/trace/duration, including binary file delivery; never supply bodies, identities, URLs or upstream exceptions to the logger. Sink failure must not fail an operation. A bounded-cardinality local summary excludes trace IDs and malformed input. This prepares diagnostics; rollout, platform retention, alert ownership/thresholds and service/storage capacity verification remain separate. See `OPERATIONS.md`.
+
 ## Remaining implementation decisions
 
-- Stage 6: registered eligible subscription integrations, live image adapter, recognition/drift thresholds, retry/fallback limits, benchmark authorization and connected account.
+- Stage 6 (deferred): registered eligible subscription integrations, provider/model selection, live adapter validation/accounting integration, recognition/drift thresholds, retry/fallback limits, benchmark authorization and verified connected account.
 - Stage 7: accepted-illustration page workflow after the Stage 6 evidence gate.
 - Stages 8–9: consent verification, retention/backup expiry, recovery evidence, explicit AI permission/spend controls when generation is enabled, and distribution readiness. Fresh approval codes, 1–480-minute sessions, parent-only deletion and exports off by default define the initial child-access mechanism. USA jurisdiction and whole-family deletion scope are confirmed.

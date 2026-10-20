@@ -1,7 +1,9 @@
 import { parentAuth, type Parent } from "../_shared/parent_auth.ts";
+import {requestLog, type LogSink} from "../_shared/observability.ts";
 import {digest as hash,readJson as readBody,uuid} from "../_shared/http.ts";
 
 type Dependencies = {
+  log?: LogSink;
   authenticate(authorization: string): Promise<Parent | null>;
   confirmPassword(parent: Parent, password: string): Promise<boolean>;
   manage(parent: Parent, action: string, hash?: string): Promise<unknown>;
@@ -16,6 +18,7 @@ const childActions:Record<string,string[]>={child_list:[],child_add:["nickname"]
   child_approve:["child_id","minutes"],child_settings:["child_id","minutes","allow_export","blocked"],child_end:["session_id"]};
 export function createHandler(deps: Dependencies) {
   return async (request: Request): Promise<Response> => {
+    const log = requestLog("parent-controls", request.method, {sink: deps.log});
     const headers = new Headers({"content-type":"application/json", "cache-control":"no-store", "vary":"Origin"});
     const trace = crypto.randomUUID(), origin = request.headers.get("origin");
     headers.set("x-trace-id", trace);
@@ -24,10 +27,12 @@ export function createHandler(deps: Dependencies) {
       headers.set("access-control-allow-headers", "authorization, apikey, content-type, x-client-info, x-imagineos-parent-grant");
       headers.set("access-control-allow-methods", "POST, OPTIONS");
     }
-    const respond = (status: number, code: string, data: unknown = null) =>
-      new Response(JSON.stringify({contract_version:1, code, data, trace_id:trace}), {status, headers});
+    const respond = (status: number, code: string, data: unknown = null) => {
+      log(status, code, trace);
+      return new Response(JSON.stringify({contract_version:1, code, data, trace_id:trace}), {status, headers});
+    };
     if (origin && !origins.has(origin)) return respond(403, "ORIGIN_DENIED");
-    if (request.method === "OPTIONS") return new Response(null, {status:204, headers});
+    if (request.method === "OPTIONS") {log(204,"PREFLIGHT",trace);return new Response(null, {status:204, headers});}
     if (request.method !== "POST") return respond(405, "METHOD_NOT_ALLOWED");
     const authorization = request.headers.get("authorization") ?? "";
     if (!/^Bearer [^\s]+$/.test(authorization)) return respond(401, "AUTH_REQUIRED");

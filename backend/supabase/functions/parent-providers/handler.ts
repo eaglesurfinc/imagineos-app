@@ -1,4 +1,5 @@
 import {parentAuth, type Parent} from "../_shared/parent_auth.ts";
+import {requestLog, type LogSink} from "../_shared/observability.ts";
 // Connection management only. This module cannot generate images or spend AI
 // credits. Never log incoming bodies, credentials, passwords or upstream errors.
 export const providers = [
@@ -18,6 +19,7 @@ export const providers = [
 
 type Connection = { provider: string; connected_at: string };
 export type Dependencies = {
+  log?: LogSink;
   authenticate(authorization: string): Promise<Parent | null>;
   manage(parent: Parent, action: string, provider?: string, secret?: string): Promise<unknown>;
   confirmPassword(parent: Parent, password: string): Promise<boolean>;
@@ -50,6 +52,7 @@ async function body(request: Request) {
 }
 export function createHandler(deps: Dependencies) {
   return async (request: Request): Promise<Response> => {
+    const log = requestLog("parent-providers", request.method, {sink: deps.log});
     const headers = new Headers({ "content-type": "application/json", "cache-control": "no-store", "vary": "Origin" });
     const origin = request.headers.get("origin");
     const trace = crypto.randomUUID();
@@ -59,10 +62,12 @@ export function createHandler(deps: Dependencies) {
       headers.set("access-control-allow-headers", "authorization, apikey, content-type, x-client-info");
       headers.set("access-control-allow-methods", "POST, OPTIONS");
     }
-    const respond = (status: number, code: string, data: unknown = null) =>
-      new Response(JSON.stringify({ contract_version: 1, code, data, trace_id: trace }), { status, headers });
+    const respond = (status: number, code: string, data: unknown = null) => {
+      log(status, code, trace);
+      return new Response(JSON.stringify({ contract_version: 1, code, data, trace_id: trace }), { status, headers });
+    };
     if (origin && !origins.has(origin)) return respond(403, "ORIGIN_DENIED");
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
+    if (request.method === "OPTIONS") {log(204, "PREFLIGHT", trace); return new Response(null, { status: 204, headers });}
     if (request.method !== "POST") return respond(405, "METHOD_NOT_ALLOWED");
     const authorization = request.headers.get("authorization") ?? "";
     if (!/^Bearer [^\s]+$/.test(authorization)) return respond(401, "AUTH_REQUIRED");

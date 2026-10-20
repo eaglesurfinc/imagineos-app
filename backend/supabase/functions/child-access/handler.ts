@@ -1,6 +1,8 @@
 import {allowedOrigins,digest,exactKeys,readJson,uuid} from "../_shared/http.ts";
+import {requestLog,type LogSink} from "../_shared/observability.ts";
 type Asset={path:string;mime_type:string;sha256:string;byte_size:number;state:string};
 type Dependencies={
+  log?:LogSink;
   rpc(action:string,hash:string,data:Record<string,unknown>):Promise<unknown>;
   download(asset:Asset):Promise<Uint8Array>;
   upload(asset:Asset,bytes:Uint8Array):Promise<void>;
@@ -26,6 +28,7 @@ function signature(bytes:Uint8Array,mime:string) {
 }
 export function createHandler(deps:Dependencies) {
   return async(request:Request):Promise<Response>=>{
+    const log=requestLog("child-access",request.method,{sink:deps.log});
     const headers=new Headers({"content-type":"application/json","cache-control":"no-store","vary":"Origin"});
     const trace=crypto.randomUUID(),origin=request.headers.get("origin");headers.set("x-trace-id",trace);
     if(origin&&allowedOrigins.has(origin)){
@@ -33,9 +36,12 @@ export function createHandler(deps:Dependencies) {
       headers.set("access-control-allow-headers","authorization, apikey, content-type, x-client-info, x-imagineos-child-session");
       headers.set("access-control-allow-methods","POST, OPTIONS");
     }
-    const reply=(status:number,code:string,data:unknown=null)=>new Response(JSON.stringify({contract_version:1,code,data,trace_id:trace}),{status,headers});
+    const reply=(status:number,code:string,data:unknown=null)=>{
+      log(status,code,trace);
+      return new Response(JSON.stringify({contract_version:1,code,data,trace_id:trace}),{status,headers});
+    };
     if(origin&&!allowedOrigins.has(origin))return reply(403,"ORIGIN_DENIED");
-    if(request.method==="OPTIONS")return new Response(null,{status:204,headers});
+    if(request.method==="OPTIONS"){log(204,"PREFLIGHT",trace);return new Response(null,{status:204,headers});}
     if(request.method!=="POST")return reply(405,"METHOD_NOT_ALLOWED");
     let value:Record<string,unknown>,token:string;
     try {
@@ -69,6 +75,7 @@ export function createHandler(deps:Dependencies) {
         if(bytes.length!==asset.byte_size||await digest(bytes)!==asset.sha256)throw Error();
         await deps.rpc("status",hash,{});
         headers.set("content-type","application/octet-stream");
+        log(200,"OK",trace);
         return new Response(bytes,{status:200,headers});
       }
       return reply(200,"OK",await deps.rpc(action as string,hash,data));

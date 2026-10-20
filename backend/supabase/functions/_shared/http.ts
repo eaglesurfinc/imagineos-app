@@ -1,6 +1,6 @@
 export const allowedOrigins = new Set(["https://imagineos-app.vercel.app", "http://localhost:8766", "http://127.0.0.1:8766"]);
 export async function digest(value: string | Uint8Array): Promise<string> {
-  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
+  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : new Uint8Array(value);
   const result = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(result), b=>b.toString(16).padStart(2,"0")).join("");
 }

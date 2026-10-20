@@ -62,6 +62,8 @@ For story planning, open a saved character version and choose Plan a story page.
 
 Under For parents, AI provider accounts explains each connection's image capabilities and usable balance. API keys are verified through read-only model discovery, encrypted on the server and never returned. Connecting/replacing/disconnecting requires your ImagineOS parent password. Subscription login is pending official app registration and eligibility; a normal sign-in does not grant image credits. Generation remains disabled until its separate validation, budget and benchmark gates pass.
 
+For a personal OpenAI test account, follow the [account, billing and API-key connection steps](docs/OPENAI_TEST_SETUP.md). Enter the provider key in the protected parent connection form; keep it out of Git and Vercel build variables.
+
 ## Verify
 
 ```powershell
@@ -69,6 +71,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check.ps1
 ```
 
 With Flutter/Dart and Node 24+ on PATH, the check script resolves dependencies, checks formatting, analyzes code, runs Flutter and offline gateway tests, and builds web. Check the hosted endpoints separately with `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-backend.ps1`. It makes no paid AI calls. For a configured web build use `flutter build web --dart-define-from-file=config/supabase.local.json`.
+
+The [operations contract](docs/OPERATIONS.md) covers automated repository checks, private request diagnostics and the release/rollback boundary. GitHub checks use the same pinned Flutter SDK as Vercel and require no provider or hosted database secrets.
 
 ## Vercel shell deployment
 
