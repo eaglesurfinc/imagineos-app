@@ -77,19 +77,28 @@ Gate: requests cannot accidentally invoke a live provider, rewrite dialogue, or 
 - [x] Delete active canvas selections with Delete/Backspace, preserve normal text-field behavior, and restore deletions through Undo.
 - [x] Add exact editable canvas text, eight bundled licensed fonts, adjustable size and palette/custom colors; verify draft recovery, PNG rendering and browser font/color changes.
 
-## Stage 6 — Bounded live illustration benchmark
+## Stage 6 — Parent-funded provider connections and bounded illustration benchmark
 
+- [x] List OpenAI, Claude and Gemini with accurate image capabilities; verify parent-owned API connections and encrypt credentials server-side with parent confirmation and family isolation.
+- [x] Verify the disabled-by-default durable accounting foundation: idempotent reservations, global/family caps, daily attempts, one dispatch claim, settlement and unknown-cost holds with simulated costs only.
+- [ ] Enable eligible provider-hosted login/subscription integrations after official app registration and capability approval; never present identity login as permission to use image credits.
 - [ ] Choose the provider through a recorded technical decision; implement a server-side adapter.
-- [ ] Add input/output validation, moderation, atomic quota/budget reservation and settlement, family limits, and kill switch.
+- [ ] Integrate a live adapter with input/output validation, moderation/recognition checks and the tested atomic quota/budget, family-limit and kill-switch foundation.
 - [ ] Obtain founder authorization for the first capped paid benchmark (existing plan caps the first release at $25 from the $200 AI allocation).
 - [ ] Benchmark varied fictional adult-created drawings across scenes; record recognition, latency, failures/retries, and cost per accepted output.
 - [ ] Set and record acceptable drift, retry, and fallback thresholds; reject unvalidated outputs.
 
 Gate: evidence shows recognizable output with bounded cost and reliable failure handling. Metadata or attractive pictures alone do not establish continuity.
 
+The founder approved both eligible subscription allowances and parent-owned API credits on 2026-10-19. Provider billing belongs to the connected parent; API and subscription balances are not interchangeable. The founder subsequently required live generation to stay disabled until an account is connected. Keep the benchmark unchecked until that connection and the capped spending authorization exist. The founder authorized continuing into Stage 7 while retaining this work off main; dependent live acceptance gates remain pending rather than being waived.
+
 ## Stage 7 — Complete story and export
 
-- [ ] Let the child select a saved character/version, direct a scene, and enter exact dialogue/narration.
+Preparation while live AI remains disabled: save/reopen original-artwork page drafts with exact text and conflict protection; export a self-contained printable draft. These are not accepted generated pages and do not waive the Stage 6 benchmark.
+
+- [x] Save/reopen original-artwork page drafts with fixed references, exact text, idempotent retries, stale-device conflicts and family isolation.
+- [x] Download/reopen a self-contained printable original-artwork draft, preserving exact escaped words and embedded source bytes.
+- [x] Let the child select a saved character/version, direct a scene, and enter exact dialogue/narration.
 - [ ] Produce and review a page using validated illustration and app-rendered text.
 - [ ] Save/reopen stories and pages with fixed version/asset references.
 - [ ] Decide the minimal export format and implement save/download with exact text and preserved artwork references.

@@ -10,6 +10,94 @@ import 'package:imagineos/features/drawing/drawing_shapes.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('full cleanup retains isolated colored ink dots on noisy paper', () {
+    final photo = image.Image(width: 128, height: 128, numChannels: 4);
+    final random = math.Random(73);
+    for (final p in photo) {
+      final noise = random.nextInt(9) - 4;
+      p.setRgba(170 + noise, 156 + noise, 140 + noise, 255);
+    }
+    photo.setPixelRgba(60, 60, 70, 110, 85, 255);
+    photo.setPixelRgba(80, 80, 195, 30, 65, 255);
+    photo.setPixelRgba(90, 90, 115, 101, 85, 255);
+    final cut = image.decodePng(processDrawingPixels(RasterRequest(
+            image.encodePng(photo),
+            operation: DrawingPixelOperation.paper,
+            tolerance: 100))
+        .bytes)!;
+    for (final at in [
+      [60, 60],
+      [80, 80],
+      [90, 90]
+    ]) {
+      final before = photo.getPixel(at[0], at[1]),
+          after = cut.getPixel(at[0], at[1]);
+      expect([after.r, after.g, after.b, after.a],
+          [before.r, before.g, before.b, 255]);
+    }
+  });
+  test(
+      'paper inside closed outlines and a deep gradual shadow becomes transparent',
+      () {
+    final photo = image.Image(width: 256, height: 192, numChannels: 4);
+    for (final p in photo) {
+      final page = 220 - (130 * p.x / 255).round() - (12 * p.y / 191).round();
+      final line = ((p.y == 40 || p.y == 150) && p.x >= 20 && p.x <= 235) ||
+          ((p.x == 20 || p.x == 235) && p.y >= 40 && p.y <= 150);
+      final ink = line ? 28 : 0;
+      p.setRgba(page - ink, page - 8 - ink, page - 20 - ink, 255);
+    }
+    final cut = image.decodePng(processDrawingPixels(RasterRequest(
+            image.encodePng(photo),
+            operation: DrawingPixelOperation.paper,
+            tolerance: 100))
+        .bytes)!;
+    final leftPaper = <String>[];
+    for (final p in cut) {
+      final before = photo.getPixel(p.x, p.y);
+      final line = ((p.y == 40 || p.y == 150) && p.x >= 20 && p.x <= 235) ||
+          ((p.x == 20 || p.x == 235) && p.y >= 40 && p.y <= 150);
+      if (line) {
+        expect([p.r, p.g, p.b, p.a], [before.r, before.g, before.b, 255]);
+      } else if (p.a != 0) {
+        leftPaper.add('${p.x},${p.y}:${p.a}');
+      }
+    }
+    expect(leftPaper, isEmpty, reason: leftPaper.take(20).join(' '));
+  });
+  test('deeply shadowed warm paper clears completely while faint lines remain',
+      () {
+    final photo = image.Image(width: 256, height: 192, numChannels: 4);
+    for (final p in photo) {
+      // Both halves are paper. The right side is darker than the former
+      // candidate floor, as in the founder's extraction screenshot.
+      final base = p.x < 128 ? 210 : 85;
+      final shade = p.y ~/ 24;
+      final ink = p.y == 96 ? 9 : 0;
+      p.setRgba(base - shade - ink, base - 8 - shade - ink,
+          base - 20 - shade - ink, 255);
+    }
+    final source = image.encodePng(photo),
+        original = Uint8List.fromList(source);
+    final cut = image.decodePng(processDrawingPixels(RasterRequest(source,
+            operation: DrawingPixelOperation.paper, tolerance: 100))
+        .bytes)!;
+    var paper = 0, cleared = 0;
+    for (final p in cut) {
+      if (p.y != 96) {
+        paper++;
+        if (p.a == 0) cleared++;
+      } else {
+        expect(p.a, 255, reason: 'faint line at ${p.x}');
+        final before = photo.getPixel(p.x, p.y);
+        expect([p.r, p.g, p.b], [before.r, before.g, before.b]);
+      }
+    }
+    expect(cleared, paper,
+        reason:
+            'every empty page pixel must be transparent: ${cut.where((p) => p.y != 96 && p.a != 0).take(20).map((p) => '${p.x},${p.y}:${p.a}').join(' ')}');
+    expect(source, original);
+  });
   test(
       'large colored artwork is preserved at every pixel including tile-edge slivers',
       () {
@@ -45,14 +133,14 @@ void main() {
     for (final p in photo) {
       final shade = (24 * p.x / 255 + 9 * p.y / 191).round();
       final noise = random.nextInt(13) - 6;
-      final ink = p.y >= 88 && p.y <= 90 && p.x >= 20 && p.x <= 235 ? 36 : 0;
+      final ink = p.y >= 88 && p.y <= 90 && p.x >= 20 && p.x <= 235 ? 30 : 0;
       p.setRgba(235 - shade + noise - ink, 225 - shade + noise - ink,
           203 - shade + noise - ink, 255);
     }
     final bytes = image.encodeJpg(photo, quality: 78);
     final before = Uint8List.fromList(bytes);
-    final cut = image.decodePng(processDrawingPixels(
-            RasterRequest(bytes, operation: DrawingPixelOperation.paper))
+    final cut = image.decodePng(processDrawingPixels(RasterRequest(bytes,
+            operation: DrawingPixelOperation.paper, tolerance: 100))
         .bytes)!;
     var empty = 0, cleared = 0, lines = 0, kept = 0;
     for (final p in cut) {
@@ -86,6 +174,15 @@ void main() {
             operation: DrawingPixelOperation.paper))
         .bytes)!;
     expect(cut.getPixel(10, 10).a, 0);
+    expect([
+      cut.getPixel(10, 10).r,
+      cut.getPixel(10, 10).g,
+      cut.getPixel(10, 10).b
+    ], [
+      0,
+      0,
+      0
+    ], reason: 'removed paper must not remain as hidden RGB');
     expect(cut.getPixel(30, 32).a, 255);
   });
   test(

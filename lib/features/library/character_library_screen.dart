@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../drawing/drawing_drafts.dart';
 import '../drawing/drawing_studio.dart';
 import '../story/illustration_contract.dart';
+import '../story/story_draft_store.dart';
 
 import 'character_store.dart';
 import 'character_detail_screen.dart';
@@ -17,6 +18,7 @@ class CharacterLibraryScreen extends StatefulWidget {
       required this.signedIn,
       this.draftScope = 'preview',
       this.drafts,
+      this.storyDrafts,
       this.storyGateway = const DisabledIllustrationGateway(),
       this.chooseFile = pickOriginal});
   final CharacterStore store;
@@ -24,6 +26,7 @@ class CharacterLibraryScreen extends StatefulWidget {
   final String draftScope;
   final DrawingDraftStore? drafts;
   final IllustrationGateway storyGateway;
+  final StoryDraftStore? storyDrafts;
   final Future<OriginalFile?> Function() chooseFile;
 
   @override
@@ -279,6 +282,7 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
           versions: history,
           draftScope: widget.draftScope,
           storyGateway: widget.storyGateway,
+          storyDrafts: widget.storyDrafts,
           drafts: _drafts),
     ));
     if (!mounted) return;

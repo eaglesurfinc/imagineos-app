@@ -115,6 +115,22 @@ function photoFixture(noisy=false) {
     await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});
     await send('Emulation.setDeviceMetricsOverride',{width:1024,height:768,deviceScaleFactor:1,mobile:false});
     await send('Page.navigate',{url:'http://127.0.0.1:8766'});await delay(1500);
+    if(process.argv.includes('--photo')) {
+      const file=process.argv[process.argv.indexOf('--photo')+1];
+      const bytes=fs.readFileSync(file);
+      assert.equal(bytes.subarray(1,4).toString(),'PNG');
+      const width=bytes.readUInt32BE(16),height=bytes.readUInt32BE(20);
+      await open({schema:1,width,height,frame:{base:bytes.toString('base64'),strokes:[],background:0}});
+      await button('Remove paper background');await waitFor('Review extracted drawing');
+      await snapshot('supplied-photo-extraction-review');await button('Use extraction');await delay(1800);
+      const extracted=(await draft()).frame.base;
+      fs.writeFileSync(path.join(downloads,'supplied-photo-transparent.png'),Buffer.from(extracted,'base64'));
+      const regions=await evaluate(`(async()=>{const bitmap=await createImageBitmap(new Blob([Uint8Array.from(atob(${JSON.stringify(extracted)}),c=>c.charCodeAt(0))],{type:'image/png'}));const c=document.createElement('canvas');c.width=bitmap.width;c.height=bitmap.height;const ctx=c.getContext('2d');ctx.drawImage(bitmap,0,0);const data=ctx.getImageData(0,0,c.width,c.height).data;return [[0,0,1298,60],[1150,70,1298,1536],[20,1100,300,1500],[600,900,800,1450]].map(([x0,y0,x1,y1])=>{let visible=0;for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)if(data[(y*c.width+x)*4+3]!==0)visible++;return visible;});})()`);
+      assert.deepEqual(regions,[0,0,0,0],'Empty paper remained in the reviewed sample regions');
+      assert.equal(errors.length,0,JSON.stringify(errors));
+      console.log('PASS: supplied photo release-browser extraction, reviewed acceptance, all four sampled empty-paper regions fully transparent. Artifacts: '+downloads);
+      return;
+    }
     if(process.argv.includes('--text-only')){await open({schema:1,width:1024,height:1024,frame:{base:null,strokes:[],background:0}});await checkCanvasText();assert.equal(errors.length,0,JSON.stringify(errors));console.log('PASS: exact canvas text, palette colors, font selection and editable updates. Artifacts: '+downloads);return;}
     await open(document);
     console.log('Checking adaptive extraction and original comparison.');

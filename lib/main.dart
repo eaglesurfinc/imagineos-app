@@ -4,8 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'supabase_config.dart';
 import 'features/parent/parent_account.dart';
+import 'features/parent/provider_connections.dart';
 import 'features/library/character_store.dart';
 import 'features/story/illustration_contract.dart';
+import 'features/story/story_draft_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +21,12 @@ Future<void> main() async {
       );
     }
     runApp(ImagineOsApp(
+      storyDrafts: config == null
+          ? null
+          : SupabaseStoryDraftStore(Supabase.instance.client),
+      providers: config == null
+          ? null
+          : SupabaseProviderConnections(Supabase.instance.client),
       storyGateway: config == null
           ? const DisabledIllustrationGateway()
           : SupabaseIllustrationGateway(Supabase.instance.client),

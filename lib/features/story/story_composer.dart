@@ -6,8 +6,10 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/device_drafts.dart';
 import 'illustration_contract.dart';
+import 'story_draft_store.dart';
 
-/// Local one-page planning checkpoint, not a cloud-saved completed story.
+/// Editable one-page checkpoint. Cloud drafts remain explicitly saved copies;
+/// neither device nor cloud persistence implies an accepted AI illustration.
 class StoryComposer extends ChangeNotifier {
   StoryComposer(
       {required this.reference,
@@ -26,6 +28,7 @@ class StoryComposer extends ChangeNotifier {
   IllustrationRequest? request;
   IllustrationResult? result;
   int attempts = 0;
+  int cloudRevision = 0;
   bool ready = false,
       busy = false,
       recoveryFailed = false,
@@ -44,6 +47,7 @@ class StoryComposer extends ChangeNotifier {
   Map<String, dynamic> toJson() => {
         'schema': 1,
         'page_id': pageId,
+        'cloud_revision': cloudRevision,
         'reference': reference.toJson(),
         'scene': scene,
         'dialogue': dialogue,
@@ -70,6 +74,9 @@ class StoryComposer extends ChangeNotifier {
           throw const FormatException('Draft reference mismatch.');
         }
         pageId = json['page_id'] as String;
+        cloudRevision = json['cloud_revision'] as int? ?? 0;
+        if (cloudRevision < 0)
+          throw const FormatException('Invalid cloud revision');
         scene = json['scene'] as String;
         dialogue = json['dialogue'] as String;
         narration = json['narration'] as String;
@@ -171,6 +178,29 @@ class StoryComposer extends ChangeNotifier {
     await checkpoint();
   }
 
+  SavedStoryDraft get snapshot => SavedStoryDraft(
+      pageId: pageId,
+      reference: reference,
+      scene: scene,
+      dialogue: dialogue,
+      narration: narration,
+      revision: cloudRevision);
+
+  Future<bool> restoreSaved(SavedStoryDraft draft) async {
+    if (!active || busy || corruptDraft || !draft.reference.sameAs(reference))
+      return false;
+    pageId = draft.pageId;
+    cloudRevision = draft.revision;
+    scene = draft.scene;
+    dialogue = draft.dialogue;
+    narration = draft.narration;
+    request = null;
+    result = null;
+    attempts = 0;
+    notifyListeners();
+    return checkpoint();
+  }
+
   Future<bool> discard() async {
     if (!active || busy) return false;
     try {
@@ -180,6 +210,7 @@ class StoryComposer extends ChangeNotifier {
       dialogue = '';
       narration = '';
       pageId = const Uuid().v4();
+      cloudRevision = 0;
       request = null;
       result = null;
       attempts = 0;

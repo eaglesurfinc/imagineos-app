@@ -6,6 +6,7 @@ import 'theme.dart';
 
 import 'features/drawing/drawing_drafts.dart';
 import 'features/story/illustration_contract.dart';
+import 'features/story/story_draft_store.dart';
 
 import 'features/library/library_screen.dart';
 import 'features/library/character_store.dart';
@@ -13,15 +14,20 @@ import 'features/library/character_library_screen.dart';
 import 'features/parent/parent_information_screen.dart';
 import 'features/parent/parent_access_screen.dart';
 import 'features/parent/parent_account.dart';
+import 'features/parent/provider_connections.dart';
 
 class ImagineOsApp extends StatelessWidget {
   const ImagineOsApp(
       {super.key,
       this.account,
       this.characterStore,
+      this.providers,
+      this.storyDrafts,
       this.storyGateway = const DisabledIllustrationGateway()});
   final ParentAccount? account;
   final CharacterStore? characterStore;
+  final ProviderConnections? providers;
+  final StoryDraftStore? storyDrafts;
   final IllustrationGateway storyGateway;
 
   @override
@@ -32,6 +38,8 @@ class ImagineOsApp extends StatelessWidget {
       theme: imagineOsTheme(),
       home: _StudioShell(
           account: account,
+          providers: providers,
+          storyDrafts: storyDrafts,
           characterStore: characterStore,
           storyGateway: storyGateway),
     );
@@ -40,9 +48,15 @@ class ImagineOsApp extends StatelessWidget {
 
 class _StudioShell extends StatefulWidget {
   const _StudioShell(
-      {this.account, this.characterStore, required this.storyGateway});
+      {this.account,
+      this.characterStore,
+      this.providers,
+      this.storyDrafts,
+      required this.storyGateway});
   final ParentAccount? account;
   final CharacterStore? characterStore;
+  final ProviderConnections? providers;
+  final StoryDraftStore? storyDrafts;
   final IllustrationGateway storyGateway;
 
   @override
@@ -94,12 +108,14 @@ class _StudioShellState extends State<_StudioShell> {
                   key: ValueKey(_sessionEmail),
                   store: widget.characterStore!,
                   storyGateway: widget.storyGateway,
+                  storyDrafts: widget.storyDrafts,
                   draftScope: _sessionEmail ?? 'signed-out',
                   signedIn: _sessionEmail != null)
             else
               const LibraryScreen(),
             if (widget.account != null)
-              ParentAccessScreen(account: widget.account!)
+              ParentAccessScreen(
+                  account: widget.account!, providers: widget.providers)
             else
               const ParentInformationScreen(),
           ],

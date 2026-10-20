@@ -419,3 +419,8 @@ enabled = true
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/illustration-gateway/index.ts"
+
+[functions.parent-providers]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/parent-providers/index.ts"

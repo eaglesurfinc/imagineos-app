@@ -325,7 +325,8 @@ class _DrawingStudioState extends State<DrawingStudio> {
           x: point.x.floor(),
           y: point.y.floor(),
           color: Color(_color).withValues(alpha: _opacity).toARGB32(),
-          tolerance: _tolerance,
+          tolerance:
+              operation == DrawingPixelOperation.paper ? 100 : _tolerance,
           polygon: polygon,
           selection: _selectionPolygon);
       var result = await compute(processDrawingPixels, request);

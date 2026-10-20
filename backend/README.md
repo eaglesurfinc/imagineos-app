@@ -102,3 +102,9 @@ To deploy this single disabled function from an authenticated CLI, run from the 
 ```
 
 The pinned CLI help confirms `--use-api` bundles server-side without Docker. Keep JWT verification enabled; do not use `--no-verify-jwt` or `--prune`. Deployment replaces this named function immediately on the dedicated development target. The initial deployment was made through the connected Supabase tool; local CLI login is still separate.
+
+## Provider connections, accounting and saved draft preparation
+
+The connection API, private accounting ledger and original-artwork page-draft RPC are described in [ILLUSTRATION_GATEWAY.md](../docs/ILLUSTRATION_GATEWAY.md). Their migration files are under `supabase/migrations/`. The `parent-providers` function needs the runtime's built-in Supabase URL/anon/service-role configuration on the server; no privileged or provider key belongs in Flutter build variables. It performs fixed-host model discovery only, confirms the ImagineOS parent password and stores provider credentials in Vault. Subscription OAuth is not enabled by adding a key. No live image adapter is present.
+
+`parent_providers_smoke.mjs`, `provider_connections.sql`, `illustration_ledger.sql` and `story_persistence_smoke.mjs` add fictional hosted checks. See the contract's verification commands for ordering, bindings and rollback. Accounting tests simulate enablement/costs inside rolled-back transactions only. Persistent generation enablement and all budget authorizations must remain false/zero until the live gate is separately met. Original deletion cascades dependent saved drafts; keep the Storage-before-metadata cleanup order, then remove fixture Auth users and ignored JSON files.

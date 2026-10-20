@@ -8,6 +8,7 @@ import '../drawing/drawing_drafts.dart';
 import '../drawing/drawing_studio.dart';
 import '../story/illustration_contract.dart';
 import '../story/story_draft_screen.dart';
+import '../story/story_draft_store.dart';
 
 class CharacterUpdate {
   const CharacterUpdate(this.version,
@@ -25,12 +26,14 @@ class CharacterDetailScreen extends StatefulWidget {
       required this.versions,
       this.draftScope = 'preview',
       this.storyGateway = const DisabledIllustrationGateway(),
+      this.storyDrafts,
       this.drafts});
   final CharacterStore store;
   final List<OriginalVersion> versions;
   final String draftScope;
   final DrawingDraftStore? drafts;
   final IllustrationGateway storyGateway;
+  final StoryDraftStore? storyDrafts;
   @override
   State<CharacterDetailScreen> createState() => _CharacterDetailScreenState();
 }
@@ -52,8 +55,8 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                     ? 'Delete character?'
                     : 'Delete version ${_version.number}?'),
                 content: Text(whole
-                    ? 'Permanently delete "${_version.name}" and all its versions, original drawings, edits, unfinished uploads, and page drafts on this device? This cannot be undone.'
-                    : 'Permanently delete version ${_version.number} of "${_version.name}", its drawing, and its page draft on this device? Other versions will stay. This cannot be undone.'),
+                    ? 'Permanently delete "${_version.name}" and all its versions, original drawings, edits, unfinished uploads, saved page drafts, and page drafts on this device? This cannot be undone.'
+                    : 'Permanently delete version ${_version.number} of "${_version.name}", its drawing, its saved page drafts, and its page draft on this device? Other versions will stay. This cannot be undone.'),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(dialogContext, false),
@@ -150,6 +153,7 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
               image: bytes,
               draftScope: widget.draftScope,
               drafts: widget.drafts,
+              store: widget.storyDrafts,
               gateway: widget.storyGateway)));
     } catch (_) {
       if (mounted)

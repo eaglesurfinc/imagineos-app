@@ -36,7 +36,11 @@ The founder's Stage 5 follow-ups on 2026-10-19 include correcting paper extracti
 
 Use an ImagineOS-owned server gateway, initially disabled. Before live generation: validate inputs/outputs, enforce moderation and recognition checks, bounded retries, idempotency, atomic cost reservation/settlement, per-family quotas, trace IDs, and a kill switch. Include failed/retried attempts in accepted-page cost measurements. Stop at exhausted limits without buying credits or discarding drafts.
 
-No live image provider is selected yet. Use varied adult-created fictional drawings for benchmarks. Character recognition, latency, retry ceilings, and acceptable drift need recorded evidence and founder decisions before a pilot.
+Support parent-owned OpenAI, Claude and Gemini connections with accurate capability and billing explanations. The founder approved both eligible subscription allowances and API credits on 2026-10-19. Use official provider authentication; subscription access requires an eligible approved integration, and a sign-in alone does not authorize API/image usage. API keys and tokens remain encrypted server-side, isolated by family; connecting/replacing/disconnecting requires parent confirmation. Never silently spend a different account's balance or substitute paid API usage for subscription allowance. Claude currently supports image analysis, not native illustration generation.
+
+No live image adapter is enabled yet. The founder instructed that generation remain disabled until a parent connects an account. Use varied adult-created fictional drawings for benchmarks. Character recognition, latency, retry ceilings, and acceptable drift need recorded evidence and founder decisions before a pilot.
+
+The founder supplied a paper drawing for local extraction debugging and requires the empty page, including shadows and enclosed areas, to become transparent while retaining the original drawn lines. Keep the photo and previews outside public Git and provider requests. Validate actual blank regions and line details; transparent percentage of the entire image is not a paper-removal success score. Preserve the original and offer review/Undo.
 
 ## MVP exclusions and release gate
 

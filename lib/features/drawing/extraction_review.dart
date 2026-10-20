@@ -62,7 +62,7 @@ class _ExtractionReviewState extends State<_ExtractionReview> {
                     liveRegion: true,
                     child: Text(_result.paperCleared == 0
                         ? 'No paper was cleared. Adjust strength, crop closer to the page, or use Outline cutout for a busy background.'
-                        : 'Paper cleared in ${(_result.paperCleared! * 100).toStringAsFixed(1)}% of the image. Check the drawing lines before accepting.')),
+                        : '${(_result.paperCleared! * 100).toStringAsFixed(1)}% of image pixels made transparent. This is not a paper-removal success score. Check remaining paper and drawing lines before accepting.')),
               SizedBox(
                   height: 240,
                   child: CustomPaint(

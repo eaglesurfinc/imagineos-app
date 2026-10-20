@@ -6,7 +6,7 @@
   "description": "Local tooling for the ImagineOS Supabase backend",
   "scripts": {
     "supabase": "supabase",
-    "test": "node --test tests/illustration_gateway_test.mjs"
+    "test": "node --test tests/illustration_gateway_test.mjs tests/parent_providers_test.mjs"
   },
   "devDependencies": {
     "supabase": "2.120.0"

@@ -6,6 +6,8 @@ import '../library/character_store.dart';
 import 'illustration_contract.dart';
 import 'story_composer.dart';
 import 'story_preview.dart';
+import 'story_draft_store.dart';
+import 'story_export.dart';
 
 class StoryDraftScreen extends StatefulWidget {
   const StoryDraftScreen(
@@ -14,12 +16,16 @@ class StoryDraftScreen extends StatefulWidget {
       required this.image,
       required this.draftScope,
       this.drafts,
+      this.store,
+      this.saveToDevice = saveStoryDraftToDevice,
       this.gateway = const DisabledIllustrationGateway()});
   final OriginalVersion version;
   final Uint8List image;
   final String draftScope;
   final DeviceDraftStore? drafts;
   final IllustrationGateway gateway;
+  final StoryDraftStore? store;
+  final SaveStoryDraft saveToDevice;
   @override
   State<StoryDraftScreen> createState() => _StoryDraftScreenState();
 }
@@ -29,6 +35,108 @@ class _StoryDraftScreenState extends State<StoryDraftScreen> {
       _dialogue = TextEditingController(),
       _narration = TextEditingController();
   late final StoryComposer _composer;
+  bool _saving = false;
+  String? _saveMessage;
+
+  Future<void> _saveCloud() async {
+    setState(() {
+      _saving = true;
+      _saveMessage = null;
+    });
+    try {
+      final revision = await widget.store!.save(_composer.snapshot);
+      if (!mounted || !_composer.active) return;
+      _composer.cloudRevision = revision;
+      await _composer.checkpoint();
+      if (mounted)
+        setState(
+            () => _saveMessage = 'Page draft saved to your family account.');
+    } catch (_) {
+      if (mounted)
+        setState(() => _saveMessage =
+            'Could not confirm this save. Your words are kept. Retry the same save, or load the saved draft if another device changed it.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _loadCloud() async {
+    setState(() {
+      _saving = true;
+      _saveMessage = null;
+    });
+    try {
+      final pages = await widget.store!.load(_composer.reference);
+      if (!mounted || !_composer.active) return;
+      if (pages.isEmpty) {
+        setState(
+            () => _saveMessage = 'No saved page drafts for this version yet.');
+        return;
+      }
+      final selected = await showDialog<SavedStoryDraft>(
+          context: context,
+          builder: (context) => SimpleDialog(
+                  title: const Text('Load a saved page draft?'),
+                  children: [
+                    const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text(
+                            'Loading replaces the scene and words currently in this device draft. Saved originals stay unchanged.')),
+                    for (final page in pages)
+                      SimpleDialogOption(
+                          onPressed: () => Navigator.pop(context, page),
+                          child: Text(
+                              'Revision ${page.revision}: ${page.scene.isEmpty ? 'Untitled scene' : page.scene}',
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis)),
+                    SimpleDialogOption(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Keep current draft'))
+                  ]));
+      if (selected != null && mounted && _composer.active) {
+        await _composer.restoreSaved(selected);
+        if (!mounted || !_composer.active) return;
+        _scene.text = _composer.scene;
+        _dialogue.text = _composer.dialogue;
+        _narration.text = _composer.narration;
+        if (mounted)
+          setState(() => _saveMessage =
+              'Saved page draft loaded with its original version.');
+      }
+    } catch (_) {
+      if (mounted)
+        setState(() => _saveMessage =
+            'Could not load saved page drafts. Your current words are kept.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _export() async {
+    setState(() {
+      _saving = true;
+      _saveMessage = null;
+    });
+    try {
+      final original = await validateOriginal(widget.image);
+      if (!mounted || !_composer.active) return;
+      final bytes = exportStoryDraft(
+          _composer.snapshot, original.bytes, original.mimeType);
+      final saved = await widget.saveToDevice(
+          bytes, 'imagineos-page-${_composer.pageId}.html');
+      if (mounted)
+        setState(() => _saveMessage = saved
+            ? 'Printable page draft download requested. Your browser chooses where to save it.'
+            : 'Save cancelled. Your page draft is kept.');
+    } catch (_) {
+      if (mounted)
+        setState(() => _saveMessage =
+            'Could not export this page draft. Your words and artwork are kept.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -97,10 +205,12 @@ class _StoryDraftScreenState extends State<StoryDraftScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => PopScope(
+      canPop: !_saving,
+      child: Scaffold(
         appBar: AppBar(
             title: const Text('Plan a story page'),
-            leading: BackButton(onPressed: _leave)),
+            leading: BackButton(onPressed: _saving ? null : _leave)),
         body: !_composer.ready
             ? const Center(child: CircularProgressIndicator())
             : Center(
@@ -114,8 +224,9 @@ class _StoryDraftScreenState extends State<StoryDraftScreen> {
                   const Text(
                       'Your page starts here. You choose the scene and every word. Illustration is currently turned off.'),
                   const SizedBox(height: 8),
-                  const Text(
-                      'Drafts are kept only on this device where storage permits. Sign-out clears them. This is not a saved story or a backup.'),
+                  Text(widget.store == null
+                      ? 'Device drafts depend on local storage. Sign-out clears them. Export a copy to keep your exact words.'
+                      : 'Save a page draft to your family account to reopen it on another device. Unsaved device edits are cleared at sign-out. Illustration remains disabled.'),
                   if (_composer.recoveryFailed) ...[
                     const SizedBox(height: 12),
                     Semantics(
@@ -143,8 +254,38 @@ class _StoryDraftScreenState extends State<StoryDraftScreen> {
                   _field('Exact narration (optional)', _narration,
                       (value) => _composer.update(narration: value)),
                   const SizedBox(height: 16),
+                  Wrap(spacing: 12, runSpacing: 8, children: [
+                    if (widget.store != null) ...[
+                      FilledButton(
+                          onPressed: _saving ||
+                                  _composer.busy ||
+                                  _composer.corruptDraft
+                              ? null
+                              : _saveCloud,
+                          child: const Text('Save page draft')),
+                      OutlinedButton(
+                          onPressed: _saving ||
+                                  _composer.busy ||
+                                  _composer.corruptDraft
+                              ? null
+                              : _loadCloud,
+                          child: const Text('Load saved page drafts')),
+                    ],
+                    OutlinedButton(
+                        onPressed:
+                            _saving || _composer.busy || _composer.corruptDraft
+                                ? null
+                                : _export,
+                        child: const Text('Export printable draft')),
+                  ]),
+                  if (_saving) const LinearProgressIndicator(),
+                  if (_saveMessage != null)
+                    Semantics(liveRegion: true, child: Text(_saveMessage!)),
+                  const SizedBox(height: 16),
                   FilledButton.icon(
-                      onPressed: _composer.canCheck ? _composer.check : null,
+                      onPressed: !_saving && _composer.canCheck
+                          ? _composer.check
+                          : null,
                       icon: const Icon(Icons.shield_outlined),
                       label: Text(_composer.busy
                           ? 'Checking availability...'
@@ -177,18 +318,18 @@ class _StoryDraftScreenState extends State<StoryDraftScreen> {
                       narration: _composer.narration),
                   const SizedBox(height: 16),
                   TextButton.icon(
-                      onPressed: _composer.busy ? null : _discard,
+                      onPressed: _saving || _composer.busy ? null : _discard,
                       icon: const Icon(Icons.delete_outline),
                       label: const Text('Discard device page draft')),
                 ]),
               )),
-      );
+      ));
 
   Widget _field(String label, TextEditingController controller,
           ValueChanged<String> onChanged, {String? helper, int? maxLength}) =>
       TextField(
           controller: controller,
-          enabled: !_composer.busy && !_composer.corruptDraft,
+          enabled: !_saving && !_composer.busy && !_composer.corruptDraft,
           minLines: 2,
           maxLines: 6,
           autocorrect: false,

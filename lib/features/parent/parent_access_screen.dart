@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 import 'parent_account.dart';
+import 'provider_connections.dart';
+import 'provider_connections_screen.dart';
 
 class ParentAccessScreen extends StatefulWidget {
-  const ParentAccessScreen({super.key, required this.account});
+  const ParentAccessScreen({super.key, required this.account, this.providers});
   final ParentAccount account;
+  final ProviderConnections? providers;
 
   @override
   State<ParentAccessScreen> createState() => _ParentAccessScreenState();
@@ -135,6 +138,17 @@ class _ParentAccessScreenState extends State<ParentAccessScreen> {
             },
           ),
           const SizedBox(height: 16),
+          if (widget.providers != null) ...[
+            FilledButton.icon(
+                onPressed: _busy
+                    ? null
+                    : () => Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => ProviderConnectionsScreen(
+                            connections: widget.providers!))),
+                icon: const Icon(Icons.auto_awesome),
+                label: const Text('AI provider accounts')),
+            const SizedBox(height: 16),
+          ],
           OutlinedButton(
             onPressed: _busy ? null : () => _run(account.signOut, null),
             child: const Text('Sign out'),
