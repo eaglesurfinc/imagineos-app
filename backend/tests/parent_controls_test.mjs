@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {createHandler, runtimeDependencies} from '../supabase/functions/parent-controls/handler.ts';
+import {createHandler, runtimeDependencies, PrivacyError} from '../supabase/functions/parent-controls/handler.ts';
 const parent={id:crypto.randomUUID(),email:'adult@example.invalid',sessionId:crypto.randomUUID()};
 const grant='a'.repeat(64), path=`${crypto.randomUUID()}/${crypto.randomUUID()}`;
 const summary={child_profiles:2,characters:1,versions:2,original_files:2,page_drafts:1,
@@ -22,6 +22,29 @@ function fixture(overrides={}) {
     removeAccount:async(p)=>calls.push({action:'account',p}),...overrides};
   return {calls,handler:createHandler(deps)};
 }
+
+test('privacy and complete backup actions require parent auth and grant, with no caller family override',async()=>{
+  const calls=[];
+  const {handler}=fixture({privacy:async(p,action,hash,paused)=>{calls.push({p,action,hash,paused});return{pilot_enabled:false,consent_status:'not_configured'};}});
+  for(const action of ['privacy_status','recovery_snapshot']){
+    assert.equal((await handler(request({action},''))).status,403);
+    assert.equal((await handler(request({action,family_id:parent.id}))).status,422);
+    const r=await handler(request({action}));assert.equal(r.status,200);assert.equal((await r.json()).data.pilot_enabled,false);
+  }
+  assert.equal((await handler(request({action:'privacy_pause',paused:'yes'}))).status,422);
+  assert.equal((await handler(request({action:'privacy_pause',paused:true}))).status,200);
+  assert.equal(calls.length,3);assert.notEqual(calls[0].hash,grant);assert.equal(calls[2].paused,true);
+  const anonymous=fixture({authenticate:async()=>null,privacy:async()=>{throw Error('must not run');}});
+  assert.equal((await anonymous.handler(request({action:'recovery_snapshot'}))).status,401);
+});
+test('backup size and expired-grant errors are actionable without leaking private content',async()=>{
+  for(const [status,code] of [[413,'BACKUP_TOO_LARGE'],[403,'PARENT_LOCKED']]){
+    const {handler}=fixture({privacy:async()=>{throw new PrivacyError(status,code);}});
+    const r=await handler(request({action:'recovery_snapshot'}));assert.equal(r.status,status);assert.equal((await r.json()).code,code);
+  }
+  const {handler}=fixture({privacy:async()=>{throw Error('fictional sensitive upstream words');}});
+  const r=await handler(request({action:'recovery_snapshot'}));assert.equal(r.status,503);assert(!(await r.text()).includes('sensitive'));
+});
 test('unlock returns a random grant; only its hash reaches storage',async()=>{
   const {handler,calls}=fixture();
   const response=await handler(request({action:'unlock',password:'fictional'}));

@@ -119,6 +119,8 @@ Gate: the complete character → scene → accepted page → save/reopen → exp
 - [ ] Implement the chosen per-child guardrails, with clear defaults and immediate revocation. Include AI authorization/spend limits, exports and destructive actions; preserve unconditional creator and safety rules. Verify direct API/Storage calls as well as the interface.
 - [x] Add protected parent settings and accurate provider/storage/privacy explanations.
 - [ ] Implement the approved consent, data visibility, retention, and deletion flows.
+- [x] Prepare honest consent/retention status, parent-controlled family access pause and device-draft removal while the real-child pilot remains unavailable.
+- [x] Verify parent-only portable saved-content backup, corruption/reference checks and explicit recover-as-copies retries without altering original artwork or story words.
 - [x] Test authorization boundaries for parent controls, account deletion/session effects, private assets, and exports.
 - [ ] Exercise backup/recovery, failed saves, logging without raw child content, and operational cost limits.
 

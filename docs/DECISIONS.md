@@ -160,6 +160,14 @@ Use a restricted child gateway backed by service-only SQL entry points. It accep
 
 Shared-device handoff signs the parent out before the child workspace opens. Separate devices redeem a code obtained from the parent. A session never resumes from device storage or gets extended by activity. The client uses the server deadline, checks status periodically/on resume, and closes private routes on expiry/revocation or verification failure. Preserve child-scoped best-effort working drafts for a later approved session; avoid treating them as an encrypted backup. Expiry is an access boundary, not permission to delete a child's saved work.
 
+## 2026-10-20 — Privacy preparation and portable saved-content recovery
+
+The founder authorized the next independent Stage 8 priority and confirmed that consent verification and retention periods are not selected: prepare the workflow and keep the real-child pilot unavailable. Report that state explicitly; do not turn sign-in or a checkbox into verified consent, choose automatic creative-content deletion periods, buy a verification service, or enable live AI. The detailed engineering contract and operator steps are in `PRIVACY_AND_RECOVERY.md`.
+
+Add a parent-unlock-protected family collection pause. It serializes against child approval/redemption, revokes existing sessions/codes and blocks future approvals until the parent resumes. Resume never restores old sessions or overrides individually blocked profiles. Saved work and parent access remain available.
+
+Use a bounded portable JSON saved-content backup containing verified original bytes and exact story data, with a consistent server manifest and no credentials/permissions. Validate untrusted archives before importing. Recovery is explicit and creates copies into an existing creator in the same family through the existing save algorithms. Stable file/target-derived retry IDs support interruption without duplication; edited recovery stories and deletion tombstones remain protected. Do not substitute missing artwork, drop words or claim whole-project/Auth recovery. The parent controls its unencrypted downloaded file; operator backup storage/expiry and an isolated infrastructure restore require separate decisions and evidence. No dependency or paid service is added.
+
 ## Remaining implementation decisions
 
 - Stage 6: registered eligible subscription integrations, live image adapter, recognition/drift thresholds, retry/fallback limits, benchmark authorization and connected account.

@@ -6,6 +6,7 @@ type Dependencies = {
   confirmPassword(parent: Parent, password: string): Promise<boolean>;
   manage(parent: Parent, action: string, hash?: string): Promise<unknown>;
   manageChildren?(parent:Parent,action:string,hash:string,data:Record<string,unknown>):Promise<unknown>;
+  privacy?(parent:Parent,action:string,hash:string,paused?:boolean):Promise<unknown>;
   removeFiles(paths: string[]): Promise<void>;
   removeAccount(parent: Parent): Promise<void>;
 };
@@ -36,11 +37,13 @@ export function createHandler(deps: Dependencies) {
       if (!value || typeof value !== "object" || Array.isArray(value)) throw Error();
       const allowed = childActions[value.action] ? ["action",...childActions[value.action]] : value.action === "unlock" ? ["action", "password"] :
         value.action === "start_delete" ? ["action", "password", "confirmation"] :
-        ["overview", "lock", "continue_delete"].includes(value.action) ? ["action"] : [];
+        value.action === "privacy_pause" ? ["action","paused"] :
+        ["overview", "lock", "continue_delete","privacy_status","recovery_snapshot"].includes(value.action) ? ["action"] : [];
       if (!allowed.length || Object.keys(value).length !== allowed.length || !allowed.every(k=>Object.hasOwn(value,k))) throw Error();
       if (["unlock", "start_delete"].includes(value.action) &&
         (typeof value.password !== "string" || !value.password.length || value.password.length>1024)) throw Error();
       if (value.action === "start_delete" && value.confirmation !== "DELETE MY FAMILY") throw Error();
+      if (value.action === "privacy_pause" && typeof value.paused !== "boolean") throw Error();
       if (childActions[value.action]) {
         if ("child_id" in value && (typeof value.child_id!=="string" || !uuid.test(value.child_id))) throw Error();
         if ("session_id" in value && (typeof value.session_id!=="string" || !uuid.test(value.session_id))) throw Error();
@@ -62,6 +65,10 @@ export function createHandler(deps: Dependencies) {
       const token = request.headers.get("x-imagineos-parent-grant") ?? "";
       if (!/^[0-9a-f]{64}$/.test(token)) return respond(403,"PARENT_LOCKED");
       const digest = await hash(token);
+      if (["privacy_status","privacy_pause","recovery_snapshot"].includes(value.action)) {
+        if (!deps.privacy) throw Error();
+        return respond(200,"OK",await deps.privacy(parent,value.action,digest,value.paused));
+      }
       if (childActions[value.action]) {
         if (!deps.manageChildren) throw Error();
         const {action,...payload}=value;
@@ -103,8 +110,17 @@ export function createHandler(deps: Dependencies) {
       // retry records and ALL sessions. File cleanup failure cannot reach here.
       await deps.removeAccount(parent);
       return respond(200,"OK",{deleted:true,pending:false});
-    } catch { return respond(503,"PARENT_CONTROLS_UNAVAILABLE"); }
+    } catch(error) {
+      if(error instanceof PrivacyError)return respond(error.status,error.code);
+      return respond(503,"PARENT_CONTROLS_UNAVAILABLE");
+    }
   };
+}
+
+export class PrivacyError extends Error {
+  status:number;
+  code:string;
+  constructor(status:number,code:string){super(code);this.status=status;this.code=code;}
 }
 
 export function runtimeDependencies(url: string, publicKey: string, serverKey: string,
@@ -126,9 +142,23 @@ export function runtimeDependencies(url: string, publicKey: string, serverKey: s
       return result.json();
     },
     async manageChildren(parent,action,digest,data) {
-      const result=await call("/rest/v1/rpc/manage_child_access",{p_parent:parent.id,p_session:parent.sessionId,
-        p_grant_hash:digest,p_action:action,p_data:data});
+      const result=await fetcher(`${url}/rest/v1/rpc/manage_child_access`,{method:"POST",redirect:"error",signal:AbortSignal.timeout(15000),
+        headers:{apikey:serverKey,authorization:`Bearer ${serverKey}`,"content-type":"application/json"},
+        body:JSON.stringify({p_parent:parent.id,p_session:parent.sessionId,p_grant_hash:digest,p_action:action,p_data:data})});
+      if(!result.ok){const e=await result.json().catch(()=>null);
+        if(e?.code==="42501" && e?.message==="CHILD_ACCESS_PAUSED")throw new PrivacyError(409,"CHILD_ACCESS_PAUSED");
+        throw Error();}
       return result.json();
+    },
+    async privacy(parent,action,digest,paused) {
+      const response=await fetcher(`${url}/rest/v1/rpc/parent_privacy`,{method:"POST",redirect:"error",signal:AbortSignal.timeout(15000),
+        headers:{apikey:serverKey,authorization:`Bearer ${serverKey}`,"content-type":"application/json"},
+        body:JSON.stringify({p_parent:parent.id,p_session:parent.sessionId,p_grant_hash:digest,p_action:action,p_paused:paused??null})});
+      if(!response.ok){const e=await response.json().catch(()=>null);
+        if(e?.code==="42501")throw new PrivacyError(403,"PARENT_LOCKED");
+        if(e?.code==="54000")throw new PrivacyError(413,"BACKUP_TOO_LARGE");
+        throw Error();}
+      return response.json();
     },
     async removeFiles(paths) {
       const result = await call("/storage/v1/object/character-originals",{prefixes:paths},"DELETE");

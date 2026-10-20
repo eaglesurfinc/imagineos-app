@@ -111,6 +111,13 @@ class ParentControls extends ChangeNotifier {
   Future<FamilyDataOverview> overview() async =>
       FamilyDataOverview(await _protected({'action': 'overview'}));
 
+  Future<Map<String, dynamic>> privacyStatus() =>
+      _protected({'action': 'privacy_status'});
+  Future<Map<String, dynamic>> pauseChildAccess(bool paused) =>
+      _protected({'action': 'privacy_pause', 'paused': paused});
+  Future<Map<String, dynamic>> recoverySnapshot() =>
+      _protected({'action': 'recovery_snapshot'});
+
   Future<Map<String, dynamic>> children() =>
       _protected({'action': 'child_list'});
   Future<void> addChild(String nickname) async {
@@ -184,7 +191,11 @@ class SupabaseParentControls extends ParentControls {
                 'Parent settings are locked. Unlock them again.',
               'TOO_MANY_ATTEMPTS' =>
                 'Too many parent requests. Try again in an hour.',
+              'BACKUP_TOO_LARGE' =>
+                'This family exceeds the portable backup limit. Nothing was left out or downloaded. Contact the project administrator for a complete export.',
               'AUTH_REQUIRED' => 'Your session has ended. Sign in again.',
+              'CHILD_ACCESS_PAUSED' =>
+                'Child access is paused. Open Privacy and recovery to allow new approvals.',
               _ =>
                 'Could not confirm this request. Reopen parent settings to check before retrying.',
             });

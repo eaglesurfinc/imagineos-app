@@ -36,7 +36,7 @@ async function browserSession(artifacts, port = 9334) {
     assert(pages, 'Browser did not start');
     ws = new WebSocket(pages.find(p => p.type==='page').webSocketDebuggerUrl);
     await new Promise(resolve => ws.addEventListener('open', resolve, {once:true}));
-    const pending = new Map(), errors = [], requests = []; let sequence=0;
+    const pending = new Map(), errors = [], requests = []; let sequence=0, chooser;
     ws.addEventListener('message', event => {
       const message=JSON.parse(event.data);
       if (message.id) {
@@ -44,6 +44,7 @@ async function browserSession(artifacts, port = 9334) {
         if (!item) return;
         message.error ? item.reject(message.error) : item.resolve(message.result);
       } else if (message.method==='Runtime.exceptionThrown') errors.push(message.params);
+      else if (message.method==='Page.fileChooserOpened') chooser=message.params;
       else if (message.method==='Network.requestWillBeSent') requests.push(message.params.request);
     });
     const send=(method,params={})=>new Promise((resolve,reject)=>{
@@ -100,9 +101,15 @@ async function browserSession(artifacts, port = 9334) {
       throw Error('Flutter accessibility tree did not initialize');
     };
     const snapshot=async name=>{const shot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(artifacts,name+'.png'),Buffer.from(shot.data,'base64'));};
+    const chooseFile=async(label,file)=>{
+      chooser=null;await send('Page.setInterceptFileChooserDialog',{enabled:true});await control(label);
+      for(let i=0;i<50&&!chooser;i++)await delay(100);
+      assert(chooser,'File chooser did not open');
+      await send('DOM.setFileInputFiles',{files:[path.resolve(file)],backendNodeId:chooser.backendNodeId});
+    };
     await send('Runtime.enable');await send('Page.enable');await send('Network.enable');
     await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:artifacts});
-    return {send,evaluate,body,waitFor,click,wheel,control,fill,semantics,snapshot,locate,field,tab,errors,requests,close,delay};
+    return {send,evaluate,body,waitFor,click,wheel,control,fill,semantics,snapshot,locate,field,tab,errors,requests,close,delay,chooseFile};
   } catch(error) { await close(); throw error; }
 }
 module.exports={browserSession};

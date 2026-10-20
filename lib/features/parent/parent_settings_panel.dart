@@ -13,12 +13,14 @@ class ParentSettingsPanel extends StatefulWidget {
       required this.controls,
       this.providers,
       this.startChild,
-      this.familyLibraryBuilder});
+      this.familyLibraryBuilder,
+      this.privacyBuilder});
   final ParentAccount account;
   final ParentControls controls;
   final ProviderConnections? providers;
   final Future<void> Function(String code)? startChild;
   final WidgetBuilder? familyLibraryBuilder;
+  final WidgetBuilder? privacyBuilder;
   @override
   State<ParentSettingsPanel> createState() => _ParentSettingsPanelState();
 }
@@ -189,6 +191,15 @@ class _ParentSettingsPanelState extends State<ParentSettingsPanel>
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (!data.deletionPending) ...[
+                      if (widget.privacyBuilder != null)
+                        OutlinedButton.icon(
+                            onPressed: _busy
+                                ? null
+                                : () => Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                        builder: widget.privacyBuilder!)),
+                            icon: const Icon(Icons.privacy_tip_outlined),
+                            label: const Text('Privacy and recovery')),
                       FilledButton.icon(
                           onPressed: _busy
                               ? null

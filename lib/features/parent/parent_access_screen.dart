@@ -12,12 +12,14 @@ class ParentAccessScreen extends StatefulWidget {
       this.providers,
       this.controls,
       this.startChild,
-      this.familyLibraryBuilder});
+      this.familyLibraryBuilder,
+      this.privacyBuilder});
   final ParentAccount account;
   final ProviderConnections? providers;
   final ParentControls? controls;
   final Future<void> Function(String code)? startChild;
   final WidgetBuilder? familyLibraryBuilder;
+  final WidgetBuilder? privacyBuilder;
 
   @override
   State<ParentAccessScreen> createState() => _ParentAccessScreenState();
@@ -116,7 +118,8 @@ class _ParentAccessScreenState extends State<ParentAccessScreen> {
                 controls: widget.controls!,
                 providers: widget.providers,
                 startChild: widget.startChild,
-                familyLibraryBuilder: widget.familyLibraryBuilder)
+                familyLibraryBuilder: widget.familyLibraryBuilder,
+                privacyBuilder: widget.privacyBuilder)
           else
             const Text(
                 'Protected parent settings are unavailable in this preview.'),

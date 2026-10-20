@@ -9,6 +9,8 @@ import '../parent/parent_access_screen.dart';
 import '../parent/parent_account.dart';
 import '../parent/parent_controls.dart';
 import '../parent/provider_connections.dart';
+import '../parent/family_backup.dart';
+import '../parent/parent_privacy_screen.dart';
 import '../story/story_draft_store.dart';
 import '../story/story_project_store.dart';
 import 'child_access.dart';
@@ -196,6 +198,15 @@ class _FamilyAccessShellState extends State<FamilyAccessShell>
                       controls: widget.controls,
                       providers: widget.providers,
                       startChild: _startChild,
+                      privacyBuilder:
+                          widget.stories == null || widget.pages == null
+                              ? null
+                              : (_) => ParentPrivacyScreen(
+                                  recovery: FamilyRecovery(
+                                      controls: widget.controls,
+                                      characters: widget.characters,
+                                      stories: widget.stories!,
+                                      pages: widget.pages!)),
                       familyLibraryBuilder: (_) => Scaffold(
                           appBar: AppBar(title: const Text('Family creations')),
                           body: CharacterLibraryScreen(
