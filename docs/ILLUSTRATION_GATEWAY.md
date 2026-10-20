@@ -4,6 +4,8 @@ Stage 5 is a page-planning foundation. No illustration provider, provider creden
 
 ## Request and access
 
+The selected character version is reusable across a child's whole story. Future live illustration must depict that character in the child's directed action/setting without redesigning its art, style, proportions, colors or distinguishing features. Keep original bytes unchanged and store generated scenes separately. Each result needs continuity validation and child review; a pinned reference does not prove visual fidelity. Comic/illustrated layout and exact child words belong to the application, not provider-generated text. The guided original-artwork story workspace does not call this disabled gateway or any provider.
+
 POST `/functions/v1/illustration-gateway` with the public project API key and signed-in parent's bearer JWT. Platform JWT verification stays enabled. The handler additionally validates the user through Auth and resolves the exact ready original through the caller's RLS-scoped `original_uploads` view. Anonymous accounts, foreign/missing references, changed checksums and deleting versions are rejected. It reads only Auth/Data API, uses no administrative key, and does not download/sign artwork URLs. There is no schema migration.
 
 The canonical [request fixture](../backend/tests/fixtures/illustration_request.json) defines the exact allowed keys:

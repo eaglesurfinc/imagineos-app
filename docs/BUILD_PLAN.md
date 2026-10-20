@@ -96,6 +96,12 @@ The founder approved both eligible subscription allowances and parent-owned API 
 
 Preparation while live AI remains disabled: save/reopen original-artwork page drafts with exact text and conflict protection; export a self-contained printable draft. These are not accepted generated pages and do not waive the Stage 6 benchmark.
 
+The founder's child-guidance/format expansion adds the following independent preparation gates. Guidance is procedural only; blank fields, story content and reading order belong to the child. Reusing a character keeps the chosen version as the illustration reference; a format switch changes layout only.
+
+- [x] Provide a child-guided original-artwork story workspace with optional title/words, explicit page/panel organization, reusable saved character versions and illustrated-page/comic-page/comic-strip layouts.
+- [x] Save/reopen the complete ordered original-artwork story with family isolation, exact text, revision conflicts and recoverable device work.
+- [x] Download/reopen a complete printable original-artwork story, preserving reading order, all words, uncropped drawing bytes and fixed version references; scene notes require explicit inclusion.
+
 - [x] Save/reopen original-artwork page drafts with fixed references, exact text, idempotent retries, stale-device conflicts and family isolation.
 - [x] Download/reopen a self-contained printable original-artwork draft, preserving exact escaped words and embedded source bytes.
 - [x] Let the child select a saved character/version, direct a scene, and enter exact dialogue/narration.

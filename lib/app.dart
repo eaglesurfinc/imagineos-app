@@ -7,6 +7,7 @@ import 'theme.dart';
 import 'features/drawing/drawing_drafts.dart';
 import 'features/story/illustration_contract.dart';
 import 'features/story/story_draft_store.dart';
+import 'features/story/story_project_store.dart';
 
 import 'features/library/library_screen.dart';
 import 'features/library/character_store.dart';
@@ -23,11 +24,13 @@ class ImagineOsApp extends StatelessWidget {
       this.characterStore,
       this.providers,
       this.storyDrafts,
+      this.storyProjects,
       this.storyGateway = const DisabledIllustrationGateway()});
   final ParentAccount? account;
   final CharacterStore? characterStore;
   final ProviderConnections? providers;
   final StoryDraftStore? storyDrafts;
+  final StoryProjectStore? storyProjects;
   final IllustrationGateway storyGateway;
 
   @override
@@ -40,6 +43,7 @@ class ImagineOsApp extends StatelessWidget {
           account: account,
           providers: providers,
           storyDrafts: storyDrafts,
+          storyProjects: storyProjects,
           characterStore: characterStore,
           storyGateway: storyGateway),
     );
@@ -52,11 +56,13 @@ class _StudioShell extends StatefulWidget {
       this.characterStore,
       this.providers,
       this.storyDrafts,
+      this.storyProjects,
       required this.storyGateway});
   final ParentAccount? account;
   final CharacterStore? characterStore;
   final ProviderConnections? providers;
   final StoryDraftStore? storyDrafts;
+  final StoryProjectStore? storyProjects;
   final IllustrationGateway storyGateway;
 
   @override
@@ -109,6 +115,7 @@ class _StudioShellState extends State<_StudioShell> {
                   store: widget.characterStore!,
                   storyGateway: widget.storyGateway,
                   storyDrafts: widget.storyDrafts,
+                  storyProjects: widget.storyProjects,
                   draftScope: _sessionEmail ?? 'signed-out',
                   signedIn: _sessionEmail != null)
             else

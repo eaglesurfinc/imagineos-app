@@ -7,6 +7,8 @@ import '../drawing/drawing_drafts.dart';
 import '../drawing/drawing_studio.dart';
 import '../story/illustration_contract.dart';
 import '../story/story_draft_store.dart';
+import '../story/story_library_screen.dart';
+import '../story/story_project_store.dart';
 
 import 'character_store.dart';
 import 'character_detail_screen.dart';
@@ -19,6 +21,7 @@ class CharacterLibraryScreen extends StatefulWidget {
       this.draftScope = 'preview',
       this.drafts,
       this.storyDrafts,
+      this.storyProjects,
       this.storyGateway = const DisabledIllustrationGateway(),
       this.chooseFile = pickOriginal});
   final CharacterStore store;
@@ -27,6 +30,7 @@ class CharacterLibraryScreen extends StatefulWidget {
   final DrawingDraftStore? drafts;
   final IllustrationGateway storyGateway;
   final StoryDraftStore? storyDrafts;
+  final StoryProjectStore? storyProjects;
   final Future<OriginalFile?> Function() chooseFile;
 
   @override
@@ -336,6 +340,18 @@ class _CharacterLibraryScreenState extends State<CharacterLibraryScreen> {
         controller: _scroll,
         padding: const EdgeInsets.all(24),
         children: [
+          if (widget.storyProjects != null)
+            OutlinedButton.icon(
+                onPressed: _busy
+                    ? null
+                    : () => Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => StoryLibraryScreen(
+                            store: widget.storyProjects!,
+                            characters: widget.store,
+                            draftScope: widget.draftScope,
+                            drafts: _drafts))),
+                icon: const Icon(Icons.menu_book_outlined),
+                label: const Text('My stories')),
           Text('A home for your characters',
               style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 12),

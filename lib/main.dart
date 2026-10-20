@@ -8,6 +8,7 @@ import 'features/parent/provider_connections.dart';
 import 'features/library/character_store.dart';
 import 'features/story/illustration_contract.dart';
 import 'features/story/story_draft_store.dart';
+import 'features/story/story_project_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,9 @@ Future<void> main() async {
       );
     }
     runApp(ImagineOsApp(
+      storyProjects: config == null
+          ? null
+          : SupabaseStoryProjectStore(Supabase.instance.client),
       storyDrafts: config == null
           ? null
           : SupabaseStoryDraftStore(Supabase.instance.client),

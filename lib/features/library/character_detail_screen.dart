@@ -55,8 +55,8 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                     ? 'Delete character?'
                     : 'Delete version ${_version.number}?'),
                 content: Text(whole
-                    ? 'Permanently delete "${_version.name}" and all its versions, original drawings, edits, unfinished uploads, saved page drafts, and page drafts on this device? This cannot be undone.'
-                    : 'Permanently delete version ${_version.number} of "${_version.name}", its drawing, its saved page drafts, and its page draft on this device? Other versions will stay. This cannot be undone.'),
+                    ? 'Permanently delete "${_version.name}" and all its versions, original drawings, edits, unfinished uploads, saved page drafts, and page drafts on this device? Organized story words stay, but these drawings become unavailable there. This cannot be undone.'
+                    : 'Permanently delete version ${_version.number} of "${_version.name}", its drawing, its saved page drafts, and its page draft on this device? Other versions will stay. Organized story words stay, but this drawing becomes unavailable there. This cannot be undone.'),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(dialogContext, false),

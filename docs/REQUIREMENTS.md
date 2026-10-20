@@ -11,6 +11,12 @@ This is the compact engineering contract extracted from the Founder Bible. It pr
 - Failure must preserve drafts and offer understandable recovery. Do not present an unvalidated illustration as an accepted page.
 - Child-friendly controls, readable labels, usable touch targets, predictable navigation, scrolling/reflow, zoom, and keyboard access belong in each affected flow.
 
+The founder clarified on 2026-10-19 that children need step-by-step organizational guidance while always remaining the creators. Guidance may explain layout, choosing saved characters, entering scene direction/optional words, ordering and reviewing. It must not suggest or fill plots, impose a beginning/middle/end, complete blank fields, correct wording, or add/remove/rewrite story content. Only explicit child actions change content or order. Empty fields and wordless pages are valid choices.
+
+Draw a character once and reuse its selected immutable version throughout a story. A future AI illustration may show that character in the child's directed pose/action and setting (for example, Jon walking down a street), while preserving its recognizable design, drawing style, proportions, colors and distinguishing marks. This is not permission to redesign or substitute a polished character. Original bytes remain unchanged; generated scenes are separate assets. Visual continuity must be validated and the child must review outputs before acceptance; fixed metadata alone does not prove the character was preserved.
+
+Support illustrated pages, comic pages and comic strips as layout choices, without changing drawing style or text. The first original-artwork story flow groups up to 24 ordered pages/panels, uses one chosen character version per panel, saves exact titles/scenes/dialogue/narration, and offers a self-contained printable draft. Comic layouts can group panels but never invent transitions or dialogue. Scene notes appear in print only when explicitly selected. Explicit source deletion leaves these story scenes/words/order intact and marks the drawing unavailable; never substitute another version. This expands draft organization without claiming an accepted generated story or advanced book production.
+
 ## Complete MVP flow
 
 Parent-managed access → child draws in-app or uploads paper artwork → names and saves the character → closes/reopens it → directs a scene and supplies exact dialogue → AI illustrates with validated recognition → saves/reopens the story → exports a useful artifact → parent can manage privacy and deletion.
@@ -44,7 +50,7 @@ The founder supplied a paper drawing for local extraction debugging and requires
 
 ## MVP exclusions and release gate
 
-No public posting/social feed, multiplayer collaboration, advanced animation, professional drawing suite, or complex classroom features. Books, richer worlds, family sharing, and enhanced print products follow only after the core flow is proven.
+No public posting/social feed, multiplayer collaboration, advanced animation, professional drawing suite, or complex classroom features. Advanced book production, richer worlds, family sharing, and enhanced print products follow only after the core flow is proven. Basic ordered illustrated/comic drafts above are included under the founder's format expansion.
 
 Resolve launch jurisdiction, applicable child-data requirements, consent, deletion/retention, safe-output handling, support, recovery, deployment terms, and unit economics before real family use. A technical build or parent-managed pilot does not establish launch readiness.
 
