@@ -178,10 +178,7 @@ class _StoryProjectScreenState extends State<StoryProjectScreen> {
       var size = _artwork.values
           .fold<int>(0, (total, file) => total + file.bytes.length);
       for (final panel in _story.panels) {
-        if (!panel.sourceAvailable) {
-          _imageError = true;
-          continue;
-        }
+        if (!panel.sourceAvailable) continue;
         if (_artwork.containsKey(panel.reference.assetId)) continue;
         final version = widget.library.versions
             .where((v) =>
@@ -220,11 +217,33 @@ class _StoryProjectScreenState extends State<StoryProjectScreen> {
     try {
       final permissions = CreationPermissions.of(context);
       await permissions.requireExport();
+      final missing = snapshot.panels.where((p) => !p.sourceAvailable).length;
+      if (missing > 0) {
+        if (!mounted || !_composer.active) return;
+        final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+                  title: const Text('Download with unavailable drawings?'),
+                  content: SingleChildScrollView(
+                      child: Text(
+                          '$missing panels have unavailable artwork. The download will keep every panel and all your exact words, with a Drawing unavailable label where artwork is missing. No drawing will be replaced.')),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel')),
+                    FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Download with placeholders')),
+                  ],
+                ));
+        if (confirmed != true) return;
+      }
       await _loadImages();
       if (!mounted || !_composer.active) return;
       await permissions.requireExport();
       final bytes = exportStoryProject(snapshot, _artwork,
-          includeSceneNotes: _includeScenes);
+          includeSceneNotes: _includeScenes,
+          includeUnavailableArtwork: missing > 0);
       final saved = await widget.saveToDevice(
           bytes, 'imagineos-story-${snapshot.id}.html');
       if (mounted && _composer.active)

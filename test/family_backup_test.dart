@@ -171,6 +171,16 @@ class Fixture {
     if (body['action'] == 'recovery_snapshot')
       return jsonDecode(jsonEncode(snapshot)) as Map<String, dynamic>;
     if (body['action'] == 'privacy_pause') paused = body['paused'] as bool;
+    if (body['action'] == 'recover_story') {
+      final story = StoryProject.fromJson(
+          Map<String, dynamic>.from(body['story'] as Map));
+      await stories.save(story);
+      if (loseRecoveryResponse) {
+        loseRecoveryResponse = false;
+        throw StateError('Lost recovery response');
+      }
+      return {'revision': 1};
+    }
     return {
       'family_id': family,
       'pilot_enabled': false,
@@ -180,6 +190,15 @@ class Fixture {
     };
   });
   bool paused = false;
+  bool loseRecoveryResponse = false;
+  void deleteSourceBeforeBackup() {
+    final asset = story.panels.first.reference.assetId;
+    (snapshot['stories'] as List).single['panels'][0]['source_available'] =
+        false;
+    originals.removeWhere((v) => v['request_id'] == asset);
+    (snapshot['pages'] as List).removeWhere((p) => p['source_id'] == asset);
+  }
+
   late final recovery = FamilyRecovery(
       controls: controls,
       characters: characters,
@@ -264,14 +283,70 @@ void main() {
     await expectLater(f.recovery.restore(archive, f.child, f.other, (_) {}),
         throwsFormatException);
     expect(f.stories.saved[restored.id]!.title, 'Child edited this');
-    (f.snapshot['stories'] as List).single['panels'][0]['source_available'] =
-        false;
+    f.deleteSourceBeforeBackup();
     final missing = await f.archive();
     final before = f.characters.writes;
     await expectLater(f.recovery.restore(missing, f.child, f.other, (_) {}),
         throwsFormatException);
     expect(f.characters.writes, before);
     expect(missing.stories.single.panels.single.dialogue, words);
+  });
+  test(
+      'confirmed recovery retains missing-artwork stories exactly without substituting a newer version',
+      () async {
+    f.deleteSourceBeforeBackup();
+    final archive = await f.archive();
+    expect(archive.unavailablePanels(f.child), 1);
+    final before =
+        f.characters.rows.map((r) => Map<String, dynamic>.of(r)).toList();
+    f.loseRecoveryResponse = true;
+    await expectLater(
+        f.recovery.restore(archive, f.child, f.other, (_) {},
+            includeUnavailableArtwork: true),
+        throwsStateError);
+    await f.recovery.restore(archive, f.child, f.other, (_) {},
+        includeUnavailableArtwork: true);
+    await f.recovery.restore(archive, f.child, f.other, (_) {},
+        includeUnavailableArtwork: true);
+    expect(f.stories.saved.length, 1);
+    expect(f.characters.writes, 1);
+    expect(f.characters.rows.take(before.length).toList(), before);
+    final restored = f.stories.saved.values.single;
+    final panel = restored.panels.single;
+    expect(restored.title, f.story.title);
+    expect(restored.format, f.story.format);
+    expect(panel.sourceAvailable, false);
+    expect(panel.scene, f.story.panels.single.scene);
+    expect(panel.dialogue, words);
+    expect(panel.narration, f.story.panels.single.narration);
+    expect(panel.characterName, f.original.name);
+    expect(panel.versionNumber, 1);
+    expect(panel.reference.sha, f.original.checksum);
+    expect(panel.reference.assetId, isNot(f.original.requestId));
+    expect(
+        f.characters.rows
+            .any((v) => v['request_id'] == panel.reference.assetId),
+        false);
+    expect(f.pages.saved, isEmpty);
+    f.stories.saved[restored.id] =
+        restored.copy(title: 'Child changed this copy');
+    await expectLater(
+        f.recovery.restore(archive, f.child, f.other, (_) {},
+            includeUnavailableArtwork: true),
+        throwsFormatException);
+    expect(f.stories.saved[restored.id]!.title, 'Child changed this copy');
+  });
+  test(
+      'inconsistent availability and unbounded historical names are rejected before recovery',
+      () async {
+    (f.snapshot['stories'] as List).single['panels'][0]['source_available'] =
+        false;
+    await expectLater(f.archive(), throwsFormatException);
+    f.deleteSourceBeforeBackup();
+    (f.snapshot['stories'] as List).single['panels'][0]['character_name'] =
+        'x' * 81;
+    await expectLater(f.archive(), throwsFormatException);
+    expect(f.characters.writes, 0);
   });
   test(
       'parent lock or a different owning family prevents backup/recovery writes',
@@ -293,6 +368,51 @@ void main() {
     } finally {
       foreign.controls.dispose();
     }
+  });
+  testWidgets(
+      'parent reviews missing-artwork recovery scope and cancellation creates no copies',
+      (tester) async {
+    f.deleteSourceBeforeBackup();
+    final archive = (await tester.runAsync(f.archive))!;
+    await tester.pumpWidget(MaterialApp(
+        home: ParentPrivacyScreen(
+            recovery: f.recovery, pickBackup: () async => archive)));
+    await tester.pumpAndSettle();
+    Future<void> tap(String text) async {
+      await tester.scrollUntilVisible(find.text(text).hitTestable(), 180,
+          scrollable: find.byType(Scrollable).first);
+      await tester.tap(find.text(text).hitTestable());
+      await tester.pumpAndSettle();
+    }
+
+    await tap('Review backup');
+    Future<void> select(int index, String text) async {
+      final dropdown = find.byType(DropdownButtonFormField<String>).at(index);
+      await tester.scrollUntilVisible(dropdown, 120,
+          scrollable: find.byType(Scrollable).first);
+      await tester.tap(dropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(text).last);
+      await tester.pumpAndSettle();
+    }
+
+    await select(0, 'Fictional creator');
+    await select(1, 'Recovery creator');
+    await tap('Recover saved copies');
+    expect(find.textContaining('1 story panels have unavailable artwork.'),
+        findsOneWidget);
+    expect(f.characters.writes, 0);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(f.characters.writes, 0);
+    expect(f.stories.saved, isEmpty);
+    await tap('Recover saved copies');
+    await tester.tap(find.text('Recover copies'));
+    await tester.pumpAndSettle();
+    expect(f.stories.saved.values.single.panels.single.sourceAvailable, false);
+    expect(f.stories.saved.values.single.panels.single.dialogue, words);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
   testWidgets(
       'phone privacy flow requires explicit pause and recovery choices, and hides data when locked',

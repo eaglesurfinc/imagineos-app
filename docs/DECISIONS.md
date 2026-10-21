@@ -188,6 +188,18 @@ Share the existing exact Flutter SDK pin between Vercel and a secret-free GitHub
 
 Add one shared allowlist-only logger to the four gateway handlers instead of copying request/error logging. Record function/method/status/result code/trace/duration, including binary file delivery; never supply bodies, identities, URLs or upstream exceptions to the logger. Sink failure must not fail an operation. A bounded-cardinality local summary excludes trace IDs and malformed input. This prepares diagnostics; rollout, platform retention, alert ownership/thresholds and service/storage capacity verification remain separate. See `OPERATIONS.md`.
 
+## 2026-10-20 - Non-AI recovery scope
+
+Preserve a backup story even when one of its drawings was deleted before export. Require explicit parent confirmation of the missing-panel count, remap historical references into stable unavailable IDs, and keep the source checksum, character label, version number, exact text, layout and order. A service-only, session/grant/family-checked copy RPC creates a complete story atomically and compares retries against existing content; it cannot overwrite edits or revive a deleted retry identity. Available source references still require ready assets owned by the destination creator. This avoids substituting a newer character drawing or discarding an entire story to make recovery succeed.
+
+Allow an explicitly confirmed printable export with labelled unavailable-artwork placeholders. Only panels already marked unavailable qualify; missing downloads, mismatched hashes and other live-art failures still block export. Text is escaped and unchanged, and scene notes remain opt-in. This is recovery of story data, not reconstruction of deleted art or an operator restore.
+
+## 2026-10-20 - Operator preparation and release evidence
+
+Prepare content-free capacity/file-integrity SQL and a local paired database/object backup verifier using fictional fixture files only. It hashes supplied bytes and rejects path/link/extra-file errors but never runs a dump/restore, uploads data, selects a backup destination or proves completeness/consistency. A whole-project rehearsal still needs approved capture/retention/encryption/key-recovery and an isolated target. Respect the existing Docker refusal. The operations contract separates this preparation from a genuine tested restore.
+
+Fingerprint the entire web artifact, recording source commit and dirty state without claiming build/test/deployment attestation. Reuse the same pinned toolchain in CI and preserve LF endings for shell scripts. No new dependency, resource purchase, provider connection or production publication is needed for these checks.
+
 ## Remaining implementation decisions
 
 - Stage 6 (deferred): registered eligible subscription integrations, provider/model selection, live adapter validation/accounting integration, recognition/drift thresholds, retry/fallback limits, benchmark authorization and verified connected account.

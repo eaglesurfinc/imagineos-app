@@ -42,3 +42,6 @@ jobs:
       - name: Require the committed dependency lockfile
         shell: bash
         run: git diff --exit-code -- pubspec.lock
+      - name: Fingerprint the complete web artifact
+        shell: bash
+        run: node backend/scripts/release_manifest.mjs > build/release-manifest.json

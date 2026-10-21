@@ -93,6 +93,8 @@ Gate: evidence shows recognizable output with bounded cost and reliable failure 
 
 The founder approved both eligible subscription allowances and parent-owned API credits on 2026-10-19. Provider billing belongs to the connected parent; API and subscription balances are not interchangeable. The founder subsequently required live generation to stay disabled until an account is connected. Keep the benchmark unchecked until that connection and the capped spending authorization exist. The founder authorized continuing into Stage 7; dependent live acceptance gates remain pending. Publication authorization and implementation progress are tracked in `STATUS.md`.
 
+On 2026-10-20 the founder deferred AI connection/testing and prioritized completing the independent non-AI engineering work. Keep live gates pending and generation disabled until an explicit resumption.
+
 ## Stage 7 — Complete story and export
 
 Preparation while live AI remains disabled: save/reopen original-artwork page drafts with exact text and conflict protection; export a self-contained printable draft. These are not accepted generated pages and do not waive the Stage 6 benchmark.
@@ -122,6 +124,10 @@ Gate: the complete character → scene → accepted page → save/reopen → exp
 - [ ] Implement the approved consent, data visibility, retention, and deletion flows.
 - [x] Prepare honest consent/retention status, parent-controlled family access pause and device-draft removal while the real-child pilot remains unavailable.
 - [x] Verify parent-only portable saved-content backup, corruption/reference checks and explicit recover-as-copies retries without altering original artwork or story words.
+- [x] Prepare automated offline repository checks and allowlisted request diagnostics without provider credentials or raw creative content. Hosted CI and alert ownership/thresholds remain release verification.
+- [x] Verify explicit same-family recovery of exact story text/order when source artwork was already deleted, with labelled unavailable-artwork placeholders and protected retries.
+- [x] Prepare operator database-and-file backup inventory/verification and a repeatable release manifest with fictional fixtures.
+- [ ] Capture protected operator backups and rehearse full restoration in an approved isolated destination, with approved encryption/key recovery and expiry policy.
 - [x] Test authorization boundaries for parent controls, account deletion/session effects, private assets, and exports.
 - [ ] Exercise backup/recovery, failed saves, logging without raw child content, and operational cost limits.
 

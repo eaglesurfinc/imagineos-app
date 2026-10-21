@@ -42,4 +42,50 @@ try {
     }
 }
 Write-Output 'Data API reachable; schema discovery correctly requires a server secret (HTTP 401).'
-Write-Output 'No table query, sign-in, or family-isolation claim follows from these endpoint checks.'
+
+$origin = 'http://127.0.0.1:8766'
+foreach ($functionName in @('parent-controls', 'parent-providers', 'child-access', 'illustration-gateway')) {
+    $endpoint = "$baseUrl/functions/v1/$functionName"
+    try {
+        $preflight = Invoke-WebRequest -Uri $endpoint -Method Options -UseBasicParsing -Headers @{
+            apikey = $config.SUPABASE_PUBLISHABLE_KEY
+            Origin = $origin
+            'Access-Control-Request-Method' = 'POST'
+        }
+        if ($preflight.StatusCode -ne 204 -or $preflight.Headers['Access-Control-Allow-Origin'] -ne $origin) {
+            throw 'Invalid preflight.'
+        }
+    } catch {
+        throw "$functionName preflight failed. Check the deployed function and allowed origin."
+    }
+    $requestBody = if ($functionName -eq 'child-access') { '{"action":"status"}' } else { '{"action":"overview"}' }
+    try {
+        $null = Invoke-WebRequest -Uri $endpoint -Method Post -UseBasicParsing -Headers @{
+            apikey = $config.SUPABASE_PUBLISHABLE_KEY
+            Origin = $origin
+        } -ContentType 'application/json' -Body $requestBody
+        throw 'Unauthenticated operation unexpectedly succeeded.'
+    } catch {
+        if (-not $_.Exception.Response -or [int]$_.Exception.Response.StatusCode -ne 401) {
+            throw "$functionName did not reject the unauthenticated request as expected."
+        }
+        if ($functionName -eq 'child-access') {
+            $errorText = $_.ErrorDetails.Message
+            if ([string]::IsNullOrWhiteSpace($errorText)) {
+                $response = $_.Exception.Response
+                if ($response.PSObject.Methods['GetResponseStream']) {
+                    $reader = New-Object System.IO.StreamReader($response.GetResponseStream())
+                    try { $errorText = $reader.ReadToEnd() } finally { $reader.Dispose() }
+                } elseif ($null -ne $response.Content) {
+                    $errorText = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                }
+            }
+            $denial = $errorText | ConvertFrom-Json
+            if ($denial.code -ne 'CHILD_APPROVAL_REQUIRED') {
+                throw 'Child access did not enforce its own approval capability.'
+            }
+        }
+    }
+    Write-Output "${functionName}: allowed-origin preflight and unauthenticated denial passed."
+}
+Write-Output 'No sign-in, paid provider call or family-isolation claim follows from these endpoint checks.'

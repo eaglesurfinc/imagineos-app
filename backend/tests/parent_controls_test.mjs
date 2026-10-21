@@ -45,6 +45,37 @@ test('backup size and expired-grant errors are actionable without leaking privat
   const {handler}=fixture({privacy:async()=>{throw Error('fictional sensitive upstream words');}});
   const r=await handler(request({action:'recovery_snapshot'}));assert.equal(r.status,503);assert(!(await r.text()).includes('sensitive'));
 });
+
+test('story-copy recovery requires the authenticated parent and unlock hash, never caller ownership',async()=>{
+  const calls=[],events=[],story={id:crypto.randomUUID(),child_id:crypto.randomUUID(),panels:[]};
+  const {handler}=fixture({log:line=>events.push(line),recoverStory:async(p,hash,value)=>{
+    calls.push({p,hash,value});return{revision:1};}});
+  assert.equal((await handler(request({action:'recover_story',story},''))).status,403);
+  assert.equal((await handler(request({action:'recover_story',story,family_id:parent.id}))).status,422);
+  assert.equal((await handler(request({action:'recover_story',story:[]}))).status,422);
+  const result=await handler(request({action:'recover_story',story}));assert.equal(result.status,200);
+  assert.equal((await result.json()).data.revision,1);assert.equal(calls.length,1);
+  assert.equal(calls[0].p,parent);assert.notEqual(calls[0].hash,grant);assert.deepEqual(calls[0].value,story);
+  assert(!events.join('').includes(story.id));assert(!events.join('').includes(story.child_id));
+  const anonymous=fixture({authenticate:async()=>null,recoverStory:async()=>{throw Error('must not run');}});
+  assert.equal((await anonymous.handler(request({action:'recover_story',story}))).status,401);
+});
+
+test('recovery runtime uses a fixed service-only RPC, maps conflicts and redacts upstream errors',async()=>{
+  for(const [code,status,resultCode] of [['42501',403,'PARENT_LOCKED'],['P0002',409,'RECOVERY_CONFLICT'],
+      ['23505',409,'RECOVERY_CONFLICT'],['22023',422,'INVALID_REQUEST'],['22P02',422,'INVALID_REQUEST']]){
+    const deps=runtimeDependencies('https://example.invalid','public','server-secret',async(url,init)=>{
+      assert.equal(url,'https://example.invalid/rest/v1/rpc/recover_story_copy');assert.equal(init.redirect,'error');
+      const body=JSON.parse(init.body);assert.equal(body.p_parent,parent.id);assert.equal(body.p_session,parent.sessionId);
+      assert.equal(init.headers.authorization,'Bearer server-secret');
+      return new Response(JSON.stringify({code,message:'private upstream story words'}),{status:400});
+    });
+    await assert.rejects(deps.recoverStory(parent,'f'.repeat(64),{title:'exact child title'}),error=>{
+      assert(error instanceof PrivacyError);assert.equal(error.status,status);assert.equal(error.code,resultCode);
+      assert(!error.message.includes('private'));return true;
+    });
+  }
+});
 test('unlock returns a random grant; only its hash reaches storage',async()=>{
   const {handler,calls}=fixture();
   const response=await handler(request({action:'unlock',password:'fictional'}));

@@ -8,7 +8,7 @@ import 'story_project.dart';
 /// Original drawings only. No screenshotting, rewriting, cropping or AI calls.
 Uint8List exportStoryProject(
     StoryProject story, Map<String, OriginalFile> artwork,
-    {bool includeSceneNotes = false}) {
+    {bool includeSceneNotes = false, bool includeUnavailableArtwork = false}) {
   if (story.panels.isEmpty)
     throw const FormatException('Add a page or panel first.');
   const escape = HtmlEscape();
@@ -18,15 +18,17 @@ Uint8List exportStoryProject(
   for (var index = 0; index < story.panels.length; index++) {
     final panel = story.panels[index],
         file = artwork[story.panels[index].reference.assetId];
-    if (!panel.sourceAvailable ||
-        file == null ||
-        !const {'image/png', 'image/jpeg', 'image/webp'}
-            .contains(file.mimeType) ||
-        sha256.convert(file.bytes).toString() != panel.reference.sha) {
+    final placeholder = !panel.sourceAvailable && includeUnavailableArtwork;
+    if (!placeholder &&
+        (!panel.sourceAvailable ||
+            file == null ||
+            !const {'image/png', 'image/jpeg', 'image/webp'}
+                .contains(file.mimeType) ||
+            sha256.convert(file.bytes).toString() != panel.reference.sha)) {
       throw const FormatException(
           'An original drawing is unavailable. Your words are kept. Reopen the story and check its drawings before exporting.');
     }
-    estimatedBytes += (file.bytes.length * 4 / 3).ceil() +
+    estimatedBytes += (placeholder ? 0 : (file!.bytes.length * 4 / 3).ceil()) +
         utf8.encode(panel.scene + panel.dialogue + panel.narration).length * 6;
     if (estimatedBytes > 50 * 1024 * 1024)
       throw const FormatException(
@@ -35,7 +37,7 @@ Uint8List exportStoryProject(
       body.write('<section class="sheet"><div class="panels">');
     body.write(
         '''<article class="panel" data-panel-id="${e(panel.id)}" data-asset-id="${e(panel.reference.assetId)}" data-character-id="${e(panel.reference.characterId)}" data-version-id="${e(panel.reference.versionId)}" data-sha256="${e(panel.reference.sha)}">
-<img alt="${e(panel.characterName)} — original drawing" src="data:${file.mimeType};base64,${base64Encode(file.bytes)}">
+${placeholder ? '<div class="missing-art" role="note">Drawing unavailable. Your scene and words are kept.</div>' : '<img alt="${e(panel.characterName)} — original drawing" src="data:${file!.mimeType};base64,${base64Encode(file.bytes)}">'}
 ${includeSceneNotes && panel.scene.isNotEmpty ? '<div class="words scene" aria-label="Scene direction">${e(panel.scene)}</div>' : ''}
 ${panel.dialogue.isNotEmpty ? '<div class="words dialogue" aria-label="Dialogue">${e(panel.dialogue)}</div>' : ''}
 ${panel.narration.isNotEmpty ? '<div class="words narration" aria-label="Narration">${e(panel.narration)}</div>' : ''}

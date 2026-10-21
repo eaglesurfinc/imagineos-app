@@ -171,12 +171,16 @@ class _ParentPrivacyScreenState extends State<ParentPrivacyScreen> {
     if (archive == null || source == null || target == null) return;
     final from = archive.children.singleWhere((c) => c.id == source).nickname;
     final to = _targets.singleWhere((c) => c.id == target).nickname;
+    final missing = archive.unavailablePanels(source);
+    final unavailable = missing == 0
+        ? ''
+        : ' $missing story panels have unavailable artwork. Their exact words and order will be recovered with Drawing unavailable placeholders. Deleted drawings will not be recreated or replaced.';
     if (!await _confirm(
         'Recover copies for $to?',
-        'Recover $from’s saved drawings and stories into $to. Existing work stays unchanged. Drawing copies receive new version references; story words and layout stay exact. Recovery can finish in steps. Keep this file and select the same creator if interrupted.',
+        'Recover $from’s saved drawings and stories into $to. Existing work stays unchanged. Drawing copies receive new version references; story words and layout stay exact. Recovery can finish in steps. Keep this file and select the same creator if interrupted.$unavailable',
         'Recover copies')) return;
-    await _run(
-        () => widget.recovery.restore(archive, source, target, _progress));
+    await _run(() => widget.recovery.restore(archive, source, target, _progress,
+        includeUnavailableArtwork: missing > 0));
   }
 
   Future<void> _pause() async {
@@ -257,7 +261,7 @@ class _ParentPrivacyScreenState extends State<ParentPrivacyScreen> {
                 Text(
                     '${archive.children.length} creators • ${archive.originals.length} saved drawings • ${archive.stories.length} stories • ${archive.pages.length} page drafts'),
                 const Text(
-                    'Recover one creator at a time into an existing profile in this family. Profiles, passwords, approvals and provider connections are not restored. Stories whose drawings were deleted before backup remain in the file but cannot be automatically imported.'),
+                    'Recover one creator at a time into an existing profile in this family. Profiles, passwords, approvals and provider connections are not restored. If a drawing was deleted before backup, confirm recovery of its story words and panel order with an unavailable-artwork placeholder.'),
                 DropdownButtonFormField<String>(
                     key: ValueKey('source-${archive.digest}'),
                     initialValue: _source,

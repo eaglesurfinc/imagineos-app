@@ -9,6 +9,7 @@ type Dependencies = {
   manage(parent: Parent, action: string, hash?: string): Promise<unknown>;
   manageChildren?(parent:Parent,action:string,hash:string,data:Record<string,unknown>):Promise<unknown>;
   privacy?(parent:Parent,action:string,hash:string,paused?:boolean):Promise<unknown>;
+  recoverStory?(parent:Parent,hash:string,story:unknown):Promise<unknown>;
   removeFiles(paths: string[]): Promise<void>;
   removeAccount(parent: Parent): Promise<void>;
 };
@@ -38,17 +39,19 @@ export function createHandler(deps: Dependencies) {
     if (!/^Bearer [^\s]+$/.test(authorization)) return respond(401, "AUTH_REQUIRED");
     let value;
     try {
-      value = await readBody(request);
+      value = await readBody(request,4*1024*1024+16384);
       if (!value || typeof value !== "object" || Array.isArray(value)) throw Error();
       const allowed = childActions[value.action] ? ["action",...childActions[value.action]] : value.action === "unlock" ? ["action", "password"] :
         value.action === "start_delete" ? ["action", "password", "confirmation"] :
         value.action === "privacy_pause" ? ["action","paused"] :
+        value.action === "recover_story" ? ["action","story"] :
         ["overview", "lock", "continue_delete","privacy_status","recovery_snapshot"].includes(value.action) ? ["action"] : [];
       if (!allowed.length || Object.keys(value).length !== allowed.length || !allowed.every(k=>Object.hasOwn(value,k))) throw Error();
       if (["unlock", "start_delete"].includes(value.action) &&
         (typeof value.password !== "string" || !value.password.length || value.password.length>1024)) throw Error();
       if (value.action === "start_delete" && value.confirmation !== "DELETE MY FAMILY") throw Error();
       if (value.action === "privacy_pause" && typeof value.paused !== "boolean") throw Error();
+      if (value.action === "recover_story" && (!value.story || typeof value.story!=="object" || Array.isArray(value.story))) throw Error();
       if (childActions[value.action]) {
         if ("child_id" in value && (typeof value.child_id!=="string" || !uuid.test(value.child_id))) throw Error();
         if ("session_id" in value && (typeof value.session_id!=="string" || !uuid.test(value.session_id))) throw Error();
@@ -70,6 +73,10 @@ export function createHandler(deps: Dependencies) {
       const token = request.headers.get("x-imagineos-parent-grant") ?? "";
       if (!/^[0-9a-f]{64}$/.test(token)) return respond(403,"PARENT_LOCKED");
       const digest = await hash(token);
+      if (value.action === "recover_story") {
+        if (!deps.recoverStory) throw Error();
+        return respond(200,"OK",await deps.recoverStory(parent,digest,value.story));
+      }
       if (["privacy_status","privacy_pause","recovery_snapshot"].includes(value.action)) {
         if (!deps.privacy) throw Error();
         return respond(200,"OK",await deps.privacy(parent,value.action,digest,value.paused));
@@ -168,6 +175,17 @@ export function runtimeDependencies(url: string, publicKey: string, serverKey: s
     async removeFiles(paths) {
       const result = await call("/storage/v1/object/character-originals",{prefixes:paths},"DELETE");
       await result.body?.cancel();
+    },
+    async recoverStory(parent,digest,story) {
+      const response=await fetcher(`${url}/rest/v1/rpc/recover_story_copy`,{method:"POST",redirect:"error",signal:AbortSignal.timeout(15000),
+        headers:{apikey:serverKey,authorization:`Bearer ${serverKey}`,"content-type":"application/json"},
+        body:JSON.stringify({p_parent:parent.id,p_session:parent.sessionId,p_grant_hash:digest,p_story:story})});
+      if(!response.ok){const e=await response.json().catch(()=>null);
+        if(e?.code==="42501")throw new PrivacyError(403,"PARENT_LOCKED");
+        if(["P0002","23505"].includes(e?.code))throw new PrivacyError(409,"RECOVERY_CONFLICT");
+        if(["22023","22P02","22003"].includes(e?.code))throw new PrivacyError(422,"INVALID_REQUEST");
+        throw Error();}
+      return response.json();
     },
     async removeAccount(parent) {
       const result = await call(`/auth/v1/admin/users/${parent.id}`,{should_soft_delete:false},"DELETE");

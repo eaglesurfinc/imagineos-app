@@ -54,6 +54,11 @@ class FamilyBackup {
   List<StoryProject> get stories =>
       _rows(snapshot['stories']).map(StoryProject.fromJson).toList();
   List<Map<String, dynamic>> get pages => _rows(snapshot['pages']);
+  int unavailablePanels(String childId) => stories
+      .where((s) => s.childId == childId)
+      .expand((s) => s.panels)
+      .where((p) => !p.sourceAvailable)
+      .length;
   Map<String, dynamic> get _payload => {
         'format': 'imagineos-family-backup',
         'version': 1,
@@ -172,6 +177,10 @@ class FamilyBackup {
                 p.reference.assetId
               ].every(_uuid));
           _check(RegExp(r'^[a-f0-9]{64}$').hasMatch(p.reference.sha));
+          _check(p.characterName.trim().isNotEmpty &&
+              p.characterName.length <= 80 &&
+              p.versionNumber >= 1 &&
+              p.versionNumber <= 2147483647);
           if (p.sourceAvailable) {
             final v = byAsset[p.reference.assetId];
             _check(v != null &&
@@ -179,6 +188,8 @@ class FamilyBackup {
                 StoryReference.fromVersion(v).sameAs(p.reference) &&
                 v.name == p.characterName &&
                 v.number == p.versionNumber);
+          } else {
+            _check(!byAsset.containsKey(p.reference.assetId));
           }
         }
       }
@@ -252,16 +263,18 @@ class FamilyRecovery {
   /// Replays the same file/creator mapping using stable IDs; never overwrites a
   /// changed story, restores credentials, or resurrects a deleted retry key.
   Future<void> restore(FamilyBackup archive, String sourceChild,
-      String targetChild, void Function(String) progress) async {
+      String targetChild, void Function(String) progress,
+      {bool includeUnavailableArtwork = false}) async {
     await _guard(archive.familyId);
     final library = await characters.load();
     _check(archive.children.any((c) => c.id == sourceChild) &&
         library.creators.any((c) => c.id == targetChild));
     final selectedStories =
         archive.stories.where((s) => s.childId == sourceChild).toList();
-    if (selectedStories.any((s) => s.panels.any((p) => !p.sourceAvailable)))
+    if (archive.unavailablePanels(sourceChild) > 0 &&
+        !includeUnavailableArtwork)
       throw const FormatException(
-          'This creator has a story whose drawing was deleted before backup. Its exact words remain in the backup, but automatic story recovery is unavailable. Nothing was imported.');
+          'Some story artwork is unavailable. Confirm recovery with unavailable-artwork placeholders to keep all words and panel order. Nothing was imported.');
     String key(String kind, String old) => const Uuid().v5(
         '6ba7b811-9dad-11d1-80b4-00c04fd430c8',
         '${archive.digest}:$targetChild:$kind:$old');
@@ -311,7 +324,25 @@ class FamilyRecovery {
           title: s.title,
           format: s.format,
           panels: s.panels.map((p) {
-            final v = recovered[p.reference.assetId]!;
+            final v = recovered[p.reference.assetId];
+            if (!p.sourceAvailable) {
+              return StoryPanel(
+                  id: key('panel', p.id),
+                  reference: StoryReference(
+                      key('missing-character', p.reference.characterId),
+                      key('missing-version', p.reference.versionId),
+                      key('missing-asset', p.reference.assetId),
+                      p.reference.sha),
+                  characterName: p.characterName,
+                  versionNumber: p.versionNumber,
+                  scene: p.scene,
+                  dialogue: p.dialogue,
+                  narration: p.narration,
+                  sourceAvailable: false);
+            }
+            if (v == null)
+              throw const FormatException(
+                  'A drawing copy is unavailable. Keep the backup and retry.');
             return StoryPanel(
                 id: key('panel', p.id),
                 reference: StoryReference.fromVersion(v),
@@ -328,7 +359,11 @@ class FamilyRecovery {
           throw const FormatException(
               'A recovered story has changed. It was kept and was not overwritten.');
       } else {
-        await stories.save(next);
+        if (next.panels.any((p) => !p.sourceAvailable)) {
+          await controls.recoverStoryCopy(next.toJson());
+        } else {
+          await stories.save(next);
+        }
       }
     }
     for (final p in archive.pages) {

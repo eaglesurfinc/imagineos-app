@@ -205,6 +205,93 @@ void main() {
     }
   });
   testWidgets(
+      'missing artwork requires explicit download confirmation and never fetches substitute art',
+      (tester) async {
+    final p = panel('missing');
+    final missing = StoryPanel(
+        id: p.id,
+        reference: p.reference,
+        characterName: p.characterName,
+        versionNumber: p.versionNumber,
+        sourceAvailable: false,
+        scene: p.scene,
+        dialogue: p.dialogue,
+        narration: p.narration);
+    var downloads = 0;
+    String? downloaded;
+    await tester.pumpWidget(MaterialApp(
+        home: StoryProjectScreen(
+      story: project().copy(panels: [missing]),
+      store: MemoryProjects(),
+      characters: originals.FakeStore(),
+      library: const CharacterLibrary([], []),
+      drafts: MemoryDrawingDrafts(),
+      draftKey: 'missing-art-export',
+      saveToDevice: (bytes, _) async {
+        downloads++;
+        downloaded = utf8.decode(bytes);
+        return true;
+      },
+    )));
+    await tester.pumpAndSettle();
+    Future<void> tap(String label) async {
+      await tester.scrollUntilVisible(find.text(label).hitTestable(), 180,
+          scrollable: find.byType(Scrollable).first);
+      await tester.tap(find.text(label).hitTestable());
+      await tester.pumpAndSettle();
+    }
+
+    await tap('5. Read, save and print');
+    await tap('Download printable story');
+    expect(find.text('Download with unavailable drawings?'), findsOneWidget);
+    expect(downloads, 0);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(downloads, 0);
+    await tap('Download printable story');
+    await tester.tap(find.text('Download with placeholders'));
+    await tester.pumpAndSettle();
+    expect(downloads, 1);
+    expect(downloaded, contains(const HtmlEscape().convert(exactWords)));
+    expect(downloaded, contains('Drawing unavailable.'));
+    expect(downloaded, isNot(contains('base64,')));
+    expect(tester.takeException(), isNull);
+  });
+  test(
+      'explicit unavailable-art exports preserve every format, panel order and exact words without disguising download failures',
+      () {
+    final p = panel('missing');
+    final missing = StoryPanel(
+        id: p.id,
+        reference: p.reference,
+        characterName: p.characterName,
+        versionNumber: p.versionNumber,
+        sourceAvailable: false,
+        scene: p.scene,
+        dialogue: p.dialogue,
+        narration: p.narration);
+    final file = OriginalFile(originals.imageBytes, 'image/png');
+    for (final format in StoryFormat.values) {
+      final story =
+          project().copy(format: format, panels: [panel('available'), missing]);
+      final artwork = {p.reference.assetId: file};
+      expect(() => exportStoryProject(story, artwork), throwsFormatException);
+      final html = utf8.decode(
+          exportStoryProject(story, artwork, includeUnavailableArtwork: true));
+      expect(RegExp('aria-label="Dialogue"').allMatches(html).length, 2);
+      expect(RegExp('aria-label="Narration"').allMatches(html).length, 2);
+      expect(html.indexOf('data-panel-id="available"'),
+          lessThan(html.indexOf('data-panel-id="missing"')));
+      expect(RegExp('base64,').allMatches(html).length, 1);
+      expect(html, contains(const HtmlEscape().convert(exactWords)));
+      expect(html, contains('Drawing unavailable.'));
+      expect(html, isNot(contains('<script>')));
+      expect(
+          () => exportStoryProject(story, {}, includeUnavailableArtwork: true),
+          throwsFormatException);
+    }
+  });
+  testWidgets(
       'guide starts blank, reuses a character, changes layout and saves only typed content',
       (tester) async {
     final store = MemoryProjects(),

@@ -4,6 +4,7 @@ const ordered=v=>Array.isArray(v)?v.map(ordered):v&&typeof v==='object'?Object.f
 (async()=>{
  const config=JSON.parse(fs.readFileSync('config/supabase.local.json')),accounts=JSON.parse(fs.readFileSync('config/auth-test.local.json'));
  const fixture=JSON.parse(fs.readFileSync('config/privacy-test.local.json'));
+ const missing=process.argv.includes('--missing-artwork')?JSON.parse(fs.readFileSync('config/story-recovery-test.local.json')):null;
  assert.equal(config.SUPABASE_URL,'https://hgsivbqmbcliqbstrkdz.supabase.co');assert(accounts.every(a=>/^adult-.*@example\.invalid$/.test(a.email)));
  async function api(route,token,body,grant){const r=await fetch(config.SUPABASE_URL+route,{method:body?'POST':'GET',headers:{apikey:config.SUPABASE_PUBLISHABLE_KEY,'content-type':'application/json',...(token?{authorization:`Bearer ${token}`} : {}),...(grant?{'x-imagineos-parent-grant':grant}:{})},body:body?JSON.stringify(body):undefined});const v=await r.json().catch(()=>null);assert([200,204].includes(r.status),'API status '+r.status);return v?.contract_version===1?v.data:v;}
  const adult=await api('/auth/v1/token?grant_type=password',null,{email:accounts[0].email,password:accounts[0].password});
@@ -48,25 +49,54 @@ const ordered=v=>Array.isArray(v)?v.map(ordered):v&&typeof v==='object'?Object.f
     assert(option,'Missing creator choice '+value);await b.click(option.x,option.y);
   }
   await choose('Creator in backup','Fictional story creator');await choose('Recover into this creator','Fictional recovery creator');
-  await b.snapshot('verified-backup-tablet');await b.control('Recover saved copies');await b.control('Cancel');
+  await b.snapshot('verified-backup-tablet');await b.control('Recover saved copies');
+  if(missing)await b.waitFor('unavailable artwork');
+  await b.control('Cancel');
   assert.equal((await api('/rest/v1/original_uploads',adult.access_token)).length,beforeRows.length,'Cancellation imported data');
   await b.control('Recover saved copies');await b.control('Recover copies');await b.wheel(20000);await b.waitFor('Recovery finished. Review the copies in Family creations.');
   const count=beforeRows.filter(v=>v.child_profile_id===fixture.creator).length;
   let rows=await api('/rest/v1/original_uploads',adult.access_token);assert.equal(rows.length,beforeRows.length+count);
   const copied=rows.filter(r=>!previousAssets.has(r.request_id));assert.equal(copied.length,count);assert(copied.every(v=>v.child_profile_id===fixture.target));
   for(const row of beforeRows)assert.equal(rows.find(v=>v.request_id===row.request_id).sha256,row.sha256,'Existing drawing changed');
-  const stories=await api('/rest/v1/story_project_snapshots',adult.access_token),saved=stories.find(s=>!previousStories.has(s.id)&&s.child_id===fixture.target);
+  const stories=await api('/rest/v1/story_project_snapshots',adult.access_token),saved=stories.find(s=>!previousStories.has(s.id)&&s.child_id===fixture.target&&s.title==='  Exact backup title  ');
   assert(saved);assert.equal(saved.title,'  Exact backup title  ');assert.equal(saved.panels[0].dialogue,fixture.words);
   assert.notEqual(saved.panels[0].reference.version_id,fixture.reference.version_id);
   assert(copied.some(v=>v.version_id===saved.panels[0].reference.version_id&&v.sha256===fixture.reference.sha256));
   const pages=await api('/rest/v1/saved_story_drafts',adult.access_token),copiedPage=pages.find(p=>copied.some(v=>v.request_id===p.source_id));assert(copiedPage);assert.equal(copiedPage.dialogue,fixture.words);
+  const missingCopy=missing?stories.find(s=>!previousStories.has(s.id)&&s.child_id===fixture.target&&s.title===missing.title):null;
+  if(missing){
+    assert(missingCopy);assert.deepEqual(missingCopy.panels.map(p=>p.source_available),[false,true]);
+    assert.equal(missingCopy.panels[0].dialogue,missing.words);assert.equal(missingCopy.panels[0].reference.sha256,missing.missingRef.sha256);
+    assert(!rows.some(v=>v.request_id===missingCopy.panels[0].reference.asset_id));
+    assert(copied.some(v=>v.request_id===missingCopy.panels[1].reference.asset_id));
+  }
   await b.control('Recover saved copies');await b.control('Recover copies');await b.wheel(20000);await b.waitFor('Recovery finished. Review the copies in Family creations.');
   rows=await api('/rest/v1/original_uploads',adult.access_token);assert.equal(rows.length,beforeRows.length+count,'Retry duplicated originals');
-  assert.equal((await api('/rest/v1/story_project_snapshots',adult.access_token)).length,beforeStories.length+1,'Retry duplicated stories');
+  const storyCount=document.snapshot.stories.filter(s=>s.child_id===fixture.creator).length;
+  assert.equal((await api('/rest/v1/story_project_snapshots',adult.access_token)).length,beforeStories.length+storyCount,'Retry duplicated stories');
   await b.snapshot('recovery-finished-tablet');
   await clearDrafts();
   await b.send('Page.reload',{ignoreCache:true});await b.semantics();await b.control('Parent sign-in');await b.waitFor('Unlock parent settings');
   assert(!(await b.body()).includes('Verified backup from'));
+  if(missing){
+    await b.fill('Parent password',accounts[0].password);await b.control('Unlock parent settings');
+    await b.control('Review family creations');await b.waitFor('Save an original');await b.control('My stories');await b.waitFor(missing.title.trim());
+    const orderedStories=await api('/rest/v1/story_project_snapshots?order=updated_at.desc,id.asc',adult.access_token);
+    const index=orderedStories.findIndex(s=>s.id===missingCopy.id);assert(index>=0&&index<20);
+    const open=await b.locate(`Array.from(document.querySelectorAll('[role="button"],button')).filter(el=>(el.innerText||el.getAttribute('aria-label')||'').trim().startsWith('Open story'))[${index}]`);
+    await b.click(open.x,open.y);await b.waitFor('You are the creator.');await b.control('5. Read, save and print');
+    await b.waitFor('Drawing unavailable. Your scene and words are kept.');
+    await b.control('Download printable story');await b.waitFor('Download with unavailable drawings?');await b.control('Cancel');
+    assert(!fs.readdirSync(artifacts).some(n=>n.endsWith('.html')),'Cancellation downloaded a story');
+    await b.control('Download printable story');await b.control('Download with placeholders');await b.waitFor('Printable story download requested.');
+    let htmlFile;for(let i=0;i<60;i++){htmlFile=fs.readdirSync(artifacts).find(n=>n.endsWith('.html'));if(htmlFile)break;await b.delay(200);}
+    assert(htmlFile);const html=fs.readFileSync(path.join(artifacts,htmlFile),'utf8');
+    const result=await b.evaluate(`(()=>{const d=new DOMParser().parseFromString(${JSON.stringify(html)},'text/html');return {title:d.querySelector('h1').textContent,dialogue:Array.from(d.querySelectorAll('.dialogue')).map(e=>e.textContent),narration:Array.from(d.querySelectorAll('.narration')).map(e=>e.textContent),refs:Array.from(d.querySelectorAll('.panel')).map(e=>e.dataset.assetId),images:d.images.length,missing:d.querySelectorAll('.missing-art').length};})()`);
+    assert.equal(result.title,missing.title);assert.deepEqual(result.dialogue,[missing.words]);
+    assert.deepEqual(result.narration,missingCopy.panels.map(p=>p.narration));
+    assert.deepEqual(result.refs,missingCopy.panels.map(p=>p.reference.asset_id));assert.equal(result.images,1);assert.equal(result.missing,1);
+    await b.snapshot('recovered-missing-art-story-tablet');
+  }
   assert.deepEqual(b.errors,[]);assert.equal(b.requests.filter(r=>/illustration-gateway|api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com/.test(r.url)).length,0);
   console.log('PASS: phone/tablet privacy pause/cancel/resume, real JSON backup download and image hashes, corrupt-file refusal, explicit creator mapping/cancellation, full original/story/page recovery and retry without duplicates, reload relocking. '+artifacts);
  }catch(e){await b.snapshot('failure');throw e;}finally{await b.close();await api('/auth/v1/logout?scope=local',adult.access_token,{});}

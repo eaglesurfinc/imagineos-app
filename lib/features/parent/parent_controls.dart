@@ -117,6 +117,16 @@ class ParentControls extends ChangeNotifier {
       _protected({'action': 'privacy_pause', 'paused': paused});
   Future<Map<String, dynamic>> recoverySnapshot() =>
       _protected({'action': 'recovery_snapshot'});
+  Future<int> recoverStoryCopy(Map<String, dynamic> story) async {
+    final result =
+        await _protected({'action': 'recover_story', 'story': story});
+    final revision = result['revision'];
+    if (revision is! int || revision < 1) {
+      throw const ParentControlsException(
+          'Story recovery was not confirmed. Keep the backup and retry the same creator.');
+    }
+    return revision;
+  }
 
   Future<Map<String, dynamic>> children() =>
       _protected({'action': 'child_list'});
@@ -193,6 +203,8 @@ class SupabaseParentControls extends ParentControls {
                 'Too many parent requests. Try again in an hour.',
               'BACKUP_TOO_LARGE' =>
                 'This family exceeds the portable backup limit. Nothing was left out or downloaded. Contact the project administrator for a complete export.',
+              'RECOVERY_CONFLICT' =>
+                'A recovery copy was changed or deleted. It was kept and was not overwritten. Keep your backup file.',
               'AUTH_REQUIRED' => 'Your session has ended. Sign in again.',
               'CHILD_ACCESS_PAUSED' =>
                 'Child access is paused. Open Privacy and recovery to allow new approvals.',
