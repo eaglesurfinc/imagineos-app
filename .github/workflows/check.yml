@@ -20,7 +20,6 @@ jobs:
     env:
       CI: 'true'
       # Only fictional fixtures. No provider or hosted database credentials.
-      IMAGINEOS_FLUTTER_SDK_DIR: ${{ runner.temp }}/imagineos-flutter
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6, reviewed 2026-10-20
         with:
@@ -33,6 +32,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export IMAGINEOS_FLUTTER_SDK_DIR="$RUNNER_TEMP/imagineos-flutter"
           source scripts/flutter-sdk.sh
           echo "$sdk_dir/bin" >> "$GITHUB_PATH"
           flutter --version
