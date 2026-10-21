@@ -2,6 +2,10 @@
 
 Record a dated decision, reason, consequences, and verification here when a material choice changes. Unresolved product questions stay visible; examples in older decision templates are not proof of approval.
 
+## 2026-10-20 - Publish the verified non-AI readiness increment
+
+The founder authorized pushing the pending changes to main. This publishes the verified non-AI recovery, diagnostics and repository-check preparation in `28d1e69` and `e9c9bc3`, with their documented limits. It does not approve a consent/retention policy, additional infrastructure, a real-child pilot or paid AI requests. Remote CI and Vercel deployment results must be checked separately from the completed local and hosted-development tests.
+
 ## 2026-10-11 — One build repository, separate product writings
 
 Founder requested a new public repository and a lean execution path. Flutter source lives at this repository's root; backend CLI, Supabase configuration, future migrations/functions/tests live under `backend/`. Compact requirements, build plan, status, and decisions are the daily engineering entry points. The full Founder Bible stays separate and preserved. Existing mobile/backend repositories remain historical sources; new feature work belongs here after consolidation.
